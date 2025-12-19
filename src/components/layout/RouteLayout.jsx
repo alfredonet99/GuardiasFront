@@ -1,5 +1,5 @@
 import { useLocation } from "react-router-dom";
-import { FiHome, FiUser , FiUsers, FiShield, FiKey, FiTerminal } from "react-icons/fi";
+import { FiHome, FiUser , FiUsers, FiShield, FiKey, FiTerminal,FiBriefcase  } from "react-icons/fi";
 import usePageTitleLabel from "../../hooks/PageNames";
 
 const ROUTE_META = [
@@ -9,6 +9,7 @@ const ROUTE_META = [
   { pattern: /^\/admin\/roles(\/.*)?$/, label: "ROLES", icon: FiShield },
   { pattern: /^\/admin\/permisos(\/.*)?$/, label: "PERMISOS", icon: FiKey },
   { pattern: /^\/admin\/console(\/.*)?$/, label: "CONSOLA", icon: FiTerminal },
+  { pattern: /^\/admin\/areas(\/.*)?$/, label: "AREAS", icon: FiBriefcase },
   
 ];
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { RiAdminLine } from "react-icons/ri";
-import { FiTerminal, FiShield, FiUsers, FiKey } from "react-icons/fi";
+import { FiTerminal, FiShield, FiUsers, FiKey, FiBriefcase } from "react-icons/fi";
 import { useMenuVisibilityFromRoutes } from "../../helpers/MenuPermissionsAdmin";
 
 export default function AdminPanel({ isExpanded }) {
@@ -20,7 +20,9 @@ export default function AdminPanel({ isExpanded }) {
     { to: "/admin/users", icon: <FiUsers />, label: "Usuarios" },
     { to: "/admin/roles", icon: <FiShield />, label: "Roles" },
     { to: "/admin/permisos", icon: <FiKey />, label: "Permisos" },
+    { to: "/admin/areas", icon: <FiBriefcase />, label: "Areas" },
     { to: "/admin/console", icon: <FiTerminal />, label: "Consola" },
+
   ];
 
   const visibleItems = menuItems.filter((item) => canView(item.to));
