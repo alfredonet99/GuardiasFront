@@ -64,6 +64,7 @@ export default function RolesPage() {
           <table className="min-w-full text-sm">
             <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-xs">
               <tr>
+                <th className="px-4 py-3 text-left">ID</th>
                 <th className="px-4 py-3 text-left">Nombre</th>
                 <th className="px-4 py-3 text-center w-[150px]">Acciones</th>
               </tr>
@@ -78,6 +79,7 @@ export default function RolesPage() {
                 filteredRoles.map((role) => (
                   <tr key={role.id} className="hover:bg-slate-100 dark:hover:bg-slate-800/70 transition">
 
+                    <td className="px-4 py-3 font-semibold">{role.id}</td>
                     <td className="px-4 py-3 font-semibold">{role.name}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">

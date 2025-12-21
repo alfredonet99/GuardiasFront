@@ -12,6 +12,8 @@ export default function EditProfile() {
   const navigate = useNavigate();
   const { user, updateUser } = useUser();
   const role = user?.roles?.length ? user.roles.map(r => r.name).join(", ") : user?.role || "Sin Rol";
+  const areaLabel = user?.roles?.some((r) => r.name === "Administrador") ? "Todas las áreas" : (user?.area?.name || "Sin área");
+
 
   const [name, setName] = useState(user.name);
   const [preview, setPreview] = useState(user.avatar);
@@ -118,6 +120,14 @@ export default function EditProfile() {
               className="mt-1 w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-500"
             />
           </div>
+
+          <div>
+            <label className="font-medium">Área</label>
+            <input value={areaLabel} disabled
+              className="mt-1 w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-500"
+            />
+          </div>
+
         </section>
 
         <section className="space-y-4">

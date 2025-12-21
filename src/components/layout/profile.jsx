@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { getUser,logout } from "../../api/auth";
+import { logout } from "../../api/auth";
 import { NavLink } from "react-router-dom";
 import { useUser } from "../context/userContext";
 
@@ -8,13 +8,21 @@ export default function Profile() {
   const menuRef = useRef(null);
   const { user } = useUser();
 
+   useEffect(() => {
+    console.log("🟦[PROFILE] user from context:", user);
+    console.log("🟦[PROFILE] roles:", user?.roles);
+    console.log("🟦[PROFILE] area:", user?.area);
+    console.log("🟦[PROFILE] area_id:", user?.area_id);
+  }, [user]);
+
   const avatar = user?.avatar
     ? user.avatar
     : `https://ui-avatars.com/api/?background=0D8ABC&color=fff&name=${encodeURIComponent(
         user?.name || "User"
       )}`;
 
-  const role = user?.roles?.[0]?.name || user?.role || "Sin Rol";    
+  const role = user?.roles?.[0]?.name || user?.role || "Sin Rol";
+  const areaLabel = user?.area?.name || (user?.roles?.some(r => r.name === "Administrador") ? "Administrador" : "Sin área");
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -42,8 +50,11 @@ export default function Profile() {
           <div className="px-4 py-3">
             <span className="block text-sm text-gray-900 dark:text-white">{user?.name}</span>
             <span className="block text-sm text-gray-500 truncate dark:text-gray-400">{user.email}</span>
-             <span className="block text-xs font-medium text-gray-500 mt-1 dark:text-gray-400">
+            <span className="block text-xs font-medium text-gray-500 mt-1 dark:text-gray-400">
               <strong>{role}</strong>
+            </span>
+            <span className="block text-xs font-medium text-gray-500 mt-1 dark:text-gray-400">
+              <strong>{areaLabel}</strong>
             </span>
           </div>
           <ul className="py-2">

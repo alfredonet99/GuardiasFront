@@ -63,8 +63,6 @@ export default function CreateUser() {
         role: roleSelected,
         activo,
       });
-
-      showMessage("Usuario creado correctamente.", "success");
       navigate("/admin/users");
     } catch (error) {
       if (error.response?.status === 422) {

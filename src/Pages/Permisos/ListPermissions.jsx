@@ -52,9 +52,7 @@ export default function ListPermissions() {
     <div className="min-h-screen w-full bg-slate-100 dark:bg-slate-950 px-6 py-6 text-slate-800 dark:text-slate-200">
       <header className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2 px-2"> Permisos del Sistema </h1>
-        {!loadingMe && isAdmin && (
         <IconCreate to="/admin/permisos/crear" label="Permiso" />
-        )} 
       </header>
 
       <section className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-5">
@@ -87,9 +85,7 @@ export default function ListPermissions() {
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300"> {p.description || "—"} </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">
-                        {!loadingMe && isAdmin && (
-                          <IconDelete onClick={() => openModal({ message: `¿Quieres eliminar el permiso "${p.name}"?`, onConfirm: () => handleDeletePermission(p.id),})}/>
-                        )}
+                        <IconDelete onClick={() => openModal({ message: `¿Quieres eliminar el permiso "${p.name}"?`, onConfirm: () => handleDeletePermission(p.id),})}/>
                       </div>
                     </td>
                   </tr>
