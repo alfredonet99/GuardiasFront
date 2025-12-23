@@ -1,8 +1,8 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { IconHome, AdminPanel,IconLogout, SearchGlobal } from '../icons/exportIcon';
 import { useState,useEffect, useCallback, useRef } from 'react';
 import { logout } from '../../api/auth';
-import Profile from './Profile';
+import Profile from './profile';
 import { PageTitleProvider } from '../context/TitlePage';
 import PageHeader from './PageHeader';
 import { useAuthCheck } from '../../hooks/Auth/AuthCheck';
@@ -14,8 +14,13 @@ import RoutePageTitleManager from './RouteLayout';
 import { refreshPermissions } from '../../services/auth';
 import { useTabLeader } from '../../hooks/Auth/TabLeader';
 import { LOGOUT_BROADCAST_KEY } from '../../services/auth';
+import PermissionDenied from '../../Pages/Errors/PermissionDenied';
 
 export default function MainLayout() {
+  const [permDenied, setPermDenied] = useState(false);
+  const [permMessage, setPermMessage] = useState("");
+  const location = useLocation();
+
   const [isHovered, setIsHovered] = useState(false);
 
   const { isLeader } = useTabLeader(true);
@@ -96,6 +101,25 @@ export default function MainLayout() {
     };
   }, [run]);
 
+   useEffect(() => {
+    const onDenied = (e) => {
+      console.log("⛔ [PERMISSION GATE] recibido:", e?.detail);
+      setPermMessage(e?.detail?.message || "No tienes permisos para acceder a esta sección.");
+      setPermDenied(true);
+    };
+
+    window.addEventListener("app:permission-denied", onDenied);
+    return () => window.removeEventListener("app:permission-denied", onDenied);
+  }, []);
+
+  // ✅ cuando cambias de ruta, “resetea” el gate (para no quedarse pegado)
+  useEffect(() => {
+    setPermDenied(false);
+    setPermMessage("");
+  }, [location.pathname]);
+
+  
+
   return (
     <div className="bg-white dark:bg-slate-900 min-h-screen">
       {expired && <SessionExpiredModal onConfirm={handleLogout} />}
@@ -148,7 +172,11 @@ export default function MainLayout() {
             <Profile />
           </div>
           <div className="h-[72px]"></div>
-          <Outlet />
+         {permDenied ? (
+            <PermissionDenied />
+          ) : (
+            <Outlet />
+          )}
         </main>
       </PageTitleProvider>
     </div>

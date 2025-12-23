@@ -130,6 +130,7 @@ export default function TableUsers() {
                 <th className="px-4 py-3">Nombre</th>
                 <th className="px-4 py-3">Correo</th>
                 <th className="px-4 py-3">Rol</th>
+                <th className="px-4 py-3">Área</th>
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3">Ultimo Acceso</th>
                 <th className="px-4 py-3 text-center">Acciones</th>
@@ -158,6 +159,12 @@ export default function TableUsers() {
 
                     <td className="px-4 py-3">
                       <span className="px-3 py-1 rounded-full text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"> {getRoleLabel(u)} </span>
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <span className="px-3 py-1 rounded-full text-xs bg-slate-100 dark:bg-slate-800">
+                        {u.area?.name ?? "Administrador"}
+                      </span>
                     </td>
 
                     <td className="px-4 py-3">

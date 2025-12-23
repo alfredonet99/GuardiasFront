@@ -3,18 +3,22 @@ import { IconCreate, IconDelete } from "../../components/icons/Crud/exportCrud";
 import SearchInputLong from "../../components/UI/Search/SearchLong";
 import ToggleUserStatusButton from "../../components/UI/Active/BtnActive";
 import { privateInstance } from "../../api/axios";
-import { useAuthMe } from "../../hooks/Auth/AuthMe";
+import { useUser } from "../../components/context/userContext";
 import PermissionDenied from "../Errors/PermissionDenied";
 import useOptimisticToggle from "../../hooks/useStatus";
+import DeleteConfirm from "../../components/UI/ConfirmBtn/DeleteConfirm";
+import useGlobalDelete from "../../hooks/Confirm/DeleteG";
 
 export default function ListAreas() {
     const [areas, setAreas] = useState([]);
     const [search, setSearch] = useState("");
-    const { isAdmin, loading: loadingMe } = useAuthMe();
+    const { user } = useUser();
+    const isAdmin = (user?.roles || []).some((r) => r?.name === "Administrador");
+    const { modal, openModal, closeModal, confirm } = useGlobalDelete();
 
 
     useEffect(() => {
-        if (loadingMe) return;
+        if (!user) return;
         if (!isAdmin) return;
         const loadAreas = async () => {
             try {
@@ -25,24 +29,23 @@ export default function ListAreas() {
             }
         };
         loadAreas();
-    }, [loadingMe, isAdmin]);
+    }, [user, isAdmin]);
 
     const { toggle: toggleAreaStatus, loadingId: loadingAreaId } =
-    useOptimisticToggle({
-      setItems: setAreas,
-      client: privateInstance,
+        useOptimisticToggle({
+            setItems: setAreas,
+            client: privateInstance,
 
-      getId: (a) => a.id,
-      getBool: (a) => a.activo,
-      setBool: (a, next) => ({ ...a, activo: next }),
+            getId: (a) => a.id,
+            getBool: (a) => a.activo,
+            setBool: (a, next) => ({ ...a, activo: next }),
 
-      buildUrl: (a) => `/areas/${a.id}/status`,
-      buildBody: (next) => ({ activo: next }),
+            buildUrl: (a) => `/areas/${a.id}/status`,
+            buildBody: (next) => ({ activo: next }),
 
-      // opcional: si tu API responde { area: { activo: ... } }
-      readBoolFromResponse: (res, fallback) =>
-        res.data?.area?.activo ?? res.data?.data?.activo ?? fallback,
-    });
+            readBoolFromResponse: (res, fallback) =>
+                res.data?.area?.activo ?? res.data?.data?.activo ?? fallback,
+        });
 
     const filterdAreas = useMemo(() => {
         return areas.filter((a) =>
@@ -50,14 +53,28 @@ export default function ListAreas() {
         );
     },[areas,search]);
 
+    const handleDelete = async (area) => {
+        try {
+        await privateInstance.delete(`/areas/${area.id}/delete`);
+        setAreas((prev) => prev.filter((x) => x.id !== area.id));
+        } catch (err) {
+        if (err.response?.status === 409) {
+            alert(err.response.data?.message || "No se puede eliminar: tiene usuarios asignados.");
+            return;
+        }
+        if (err.response?.status === 403) {
+            alert(err.response.data?.message || "No tienes permiso para eliminar áreas.");
+            return;
+        }
+        console.error("Error al eliminar área:", err);
+        alert("No se pudo eliminar el área. Intenta de nuevo.");
+        }
+    };
+
     
 
-    if (loadingMe) {
-        return (
-        <div className="p-6 text-center text-slate-500 dark:text-slate-300">
-            Cargando...
-        </div>
-        );
+    if (!user) {
+        return (<div className="p-6 text-center text-slate-500 dark:text-slate-300"> Cargando... </div>);
     }
 
 
@@ -82,6 +99,7 @@ export default function ListAreas() {
                     <table className="min-w-full text-sm">
                         <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-xs">
                         <tr>
+                            <th className="px-4 py-3 text-left">ID</th>
                             <th className="px-4 py-3 text-left">Nombre</th>
                             <th className="px-4 py-3 text-left">Activo</th>
                             <th className="px-4 py-3 text-center w-[150px]">Acciones</th>
@@ -96,6 +114,7 @@ export default function ListAreas() {
                             ):(
                                 filterdAreas.map((area) => (
                                     <tr key={area.id} className="hover:bg-slate-100 dark:hover:bg-slate-800/70 transition">
+                                        <td className="px-4 py-3 font-semibold">{area.id}</td>
                                         <td className="px-4 py-3 font-semibold">{area.name}</td>
                                         <td className="px-4 py-3">
                                             <span className={`px-3 py-1 rounded-full text-xs ${area.activo ? "bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-300": "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300"}`}>
@@ -105,7 +124,7 @@ export default function ListAreas() {
                                         <td className="px-4 py-3">
                                             <div className="flex justify-center gap-2">
                                                 <ToggleUserStatusButton active={!!area.activo} loading={loadingAreaId === area.id} label={area.activo ? "Desactivar" : "Activar"} onToggle={() => toggleAreaStatus(area)}/>
-                                                <IconDelete/>
+                                                <IconDelete onClick={() => openModal({message: `¿Quieres eliminar el area "${area.name} "?\nSi el area esta ligada a usuarios no se podra eliminar. \nEsta acción no se podrá revertir.`,onConfirm: () => handleDelete(area),})}/>
                                             </div>
                                         </td>
                                     </tr>
@@ -117,6 +136,7 @@ export default function ListAreas() {
                     </table>
                 </div>
             </section>
+            <DeleteConfirm isOpen={modal.isOpen} message={modal.message} onCancel={closeModal} onConfirm={confirm}/>
         </div>
     )
 }

@@ -1,6 +1,6 @@
 // Pages/Users/ShowUser.jsx
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom"; // ✅ agregado useNavigate
+import { useNavigate, useParams } from "react-router-dom";
 import { privateInstance } from "../../api/axios";
 import BackButton from "../../components/UI/ConfirmBtn/ExitConfirmShow";
 import IconEditShow from "../../components/icons/Crud/EditShow";
@@ -28,6 +28,7 @@ export default function ShowUser() {
   const [user, setUser] = useState(null);
   const [roles, setRoles] = useState([]);
   const [directPerms, setDirectPerms] = useState([]);
+  const [area, setArea] = useState(null);
 
   useEffect(() => {
     if (!id) return;
@@ -40,6 +41,7 @@ export default function ShowUser() {
         console.log("🟦[SHOWUSER] response:", data);
 
         setUser(data?.user ?? null);
+        setArea(data?.area ?? null);
 
         const r =
           Array.isArray(data?.roles) ? data.roles :
@@ -60,10 +62,16 @@ export default function ShowUser() {
           [];
         setDirectPerms(dp);
       } catch (e) {
+        const status = e?.response?.status;
+        if (status === 403) {
+          setDenied(true);
+          return;
+        }
         console.error("[ShowUser] load error:", e);
         setUser(null);
         setRoles([]);
         setDirectPerms([]);
+        setArea(null);
         setTargetIsAdmin(false);
       } finally {
         setLoading(false);
@@ -73,16 +81,6 @@ export default function ShowUser() {
     load();
   }, [id]);
 
-  // ✅ BLOQUEO: si NO soy admin y el TARGET es admin => fuera
-  useEffect(() => {
-    if (loadingMe) return;
-    if (loading) return;
-    if (targetIsAdmin === null) return;
-
-    if (!isAdmin && targetIsAdmin && !denied) {
-      setDenied(true);
-    }
-  }, [loadingMe, loading, isAdmin, targetIsAdmin, denied]);
 
   const roleText = useMemo(() => {
     if (!Array.isArray(roles)) return "";
@@ -165,6 +163,13 @@ export default function ShowUser() {
             <label className="font-semibold text-sm">Rol</label>
             <div className="mt-1 w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
               {roleText || "Sin Rol"}
+            </div>
+          </div>
+
+           <div>
+            <label className="font-semibold text-sm">Área</label>
+            <div className="mt-1 w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              {area?.name ?? "Administrador"}
             </div>
           </div>
 

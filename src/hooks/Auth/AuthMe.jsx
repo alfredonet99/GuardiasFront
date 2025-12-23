@@ -8,8 +8,11 @@ export function useAuthMe() {
   const [roles, setRoles] = useState([]);
   const [perms, setPerms] = useState([]);
 
-  const refresh = async () => {
-    const res = await privateInstance.get("/auth/me");
+  const refresh = async (opts = { perms: false }) => {
+    const res = await privateInstance.get("/auth/me", {
+      params: { perms: opts.perms ? 1 : 0 },
+    });
+
     setUser(res.data.user || null);
     setIsAdmin(Boolean(res.data.isAdmin));
     setRoles(res.data.roles || []);

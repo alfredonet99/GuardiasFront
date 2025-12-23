@@ -11,7 +11,8 @@ const privateInstance = axios.create({
   baseURL: baseUrl,
 });
 
-let authHandled = false; // ✅ evita disparar la señal 20 veces
+let authHandled = false; 
+let permHandled = false; 
 
 privateInstance.interceptors.request.use((config) => {
   // ✅ si ya marcaste sesión expirada/inactiva, NO dispares más requests
@@ -29,6 +30,7 @@ privateInstance.interceptors.response.use(
   (err) => {
     const status = err?.response?.status;
     const reason = err?.response?.data?.reason;
+    const message = err?.response?.data?.message || "No tienes permisos para acceder a esta sección.";
 
     // ✅ 401: token inválido/expirado
     if (status === 401 && !authHandled) {
@@ -38,17 +40,34 @@ privateInstance.interceptors.response.use(
       localStorage.setItem("sessionExpired", "1");
       localStorage.setItem("expired_at", Date.now().toString());
       localStorage.setItem("session_reason", "expired");
+      return Promise.reject(err);
     }
 
     // ✅ 403 inactive: usuario desactivado
     if (status === 403 && reason === "inactive" && !authHandled) {
       authHandled = true;
-      console.warn("⛔ 403 inactive detectado por axios. Lo manejará el hook/modal.");
-
       localStorage.setItem("sessionExpired", "1");
       localStorage.setItem("expired_at", Date.now().toString());
       localStorage.setItem("session_reason", "inactive");
-      localStorage.setItem("inactive_account", "1"); // opcional si lo usabas en login
+      localStorage.setItem("inactive_account", "1");
+      return Promise.reject(err);
+    }
+
+    if (status === 403 && reason !== "inactive" && !permHandled) {
+      permHandled = true;
+      const method = (err?.config?.method || "").toLowerCase();
+      if (method === "get") {
+        window.dispatchEvent(
+          new CustomEvent("app:permission-denied", {
+            detail: { message },
+          })
+        );
+      } else {
+        console.warn("⛔ 403 acción:", message);
+      }
+      setTimeout(() => {
+        permHandled = false;
+      }, 800);
     }
 
     return Promise.reject(err);

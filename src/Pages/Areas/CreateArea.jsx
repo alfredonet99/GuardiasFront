@@ -11,8 +11,13 @@ import { useAutoClearErrors } from "../../hooks/Errors/clearErrorMessage";
 import { useTouchedFields } from "../../hooks/Errors/TouchedFields";
 import useFlashMessage from "../../hooks/Errors/ErrorMessage";
 
+import { useUser } from "../../components/context/userContext";
+import PermissionDenied from "../Errors/PermissionDenied";
+
 export default function CreateArea() {
     const navigate = useNavigate();
+    const { user } = useUser();
+    const isAdmin = (user?.roles || []).some((r) => r?.name === "Administrador");
 
     const { localErrors, errorKey, validateFields, clearError } = useFieldErrors();
     const { isTouched, markTouched, markAllTouched } = useTouchedFields();
@@ -57,6 +62,12 @@ export default function CreateArea() {
         }
         
     };
+
+    if (!user) {
+    return (<div className="p-6 text-center text-slate-500 dark:text-slate-300"> Cargando sesión... </div>);
+  }
+
+   if (!isAdmin) return <PermissionDenied />;
     return (
         <div className="min-h-screen w-full px-6 py-6 bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200">
             <header className="flex items-center justify-between mb-6">

@@ -31,6 +31,8 @@ export default function CreateRole() {
   useAutoClearErrors(formValues, localErrors, clearError);
 
   useEffect(() => {
+    if (loadingMe) return;
+    if (!isAdmin) return;
     const loadData = async () => {
       try {
         const res = await privateInstance.get("/roles/crear");
@@ -112,7 +114,7 @@ export default function CreateRole() {
   };
   
 
-  if (loading) {
+  if (loadingMe) {
     return <div className="p-6 text-center text-slate-500 dark:text-slate-300">Cargando formulario...</div>;
   }
 
