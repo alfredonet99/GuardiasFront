@@ -1,10 +1,6 @@
-import usePageTitleLabel from "../hooks/PageNames"
 import { FiGrid } from "react-icons/fi";
-export default function HomePage(){
-    usePageTitleLabel("DASHBOARD",FiGrid);
-    return(
-        <>
-        <p>Hola</p>
-        </>
-    )
+import usePageTitleLabel from "../hooks/PageNames";
+export default function HomePage() {
+	usePageTitleLabel("DASHBOARD", FiGrid);
+	return <p>Hola</p>;
 }
