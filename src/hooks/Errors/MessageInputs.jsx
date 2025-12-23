@@ -1,56 +1,104 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 export function useFieldErrors() {
-  const [localErrors, setLocalErrors] = useState({});
-  const [errorKey, setErrorKey] = useState(0);
+	const [localErrors, setLocalErrors] = useState({});
+	const [errorKey, setErrorKey] = useState(0);
 
-  const triggerError = (field, message) => {
-    setLocalErrors((prev) => ({ ...prev, [field]: message }));
-    setErrorKey((k) => k + 1);
-  };
+	const bumpKey = useCallback(() => {
+		setErrorKey((k) => k + 1);
+	}, []);
 
-  const clearError = (field) => {
-    setLocalErrors((prev) => {
-      const updated = { ...prev };
-      delete updated[field];
-      return updated;
-    });
-    setErrorKey((k) => k + 1);
-  };
+	const triggerError = useCallback(
+		(field, message) => {
+			setLocalErrors((prev) => {
+				// ✅ si ya existe el mismo mensaje, no re-render innecesario
+				if (prev?.[field] === message) return prev;
+				return { ...prev, [field]: message };
+			});
+			bumpKey();
+		},
+		[bumpKey],
+	);
 
-  const validateFields = (rules, data) => {
-    let valid = true;
+	const clearError = useCallback(
+		(field) => {
+			setLocalErrors((prev) => {
+				// ✅ si no existe, no cambies state
+				if (!Object.hasOwn(prev, field)) return prev;
 
-    for (const field in rules) {
-      const value = data[field];
-      const rule = rules[field];
+				const updated = { ...prev };
+				delete updated[field];
+				return updated;
+			});
+			bumpKey();
+		},
+		[bumpKey],
+	);
 
-      const isEmpty =
-        value === null ||
-        value === undefined ||
-        (typeof value === "string" && value.trim() === "") ||
-        (Array.isArray(value) && value.length === 0);
+	const validateFields = useCallback(
+		(rules, data) => {
+			let valid = true;
 
-      // ✅ requerido
-      if (rule.required && isEmpty) {
-        triggerError(field, rule.message || `El campo ${field} es obligatorio.`);
-        valid = false;
-        continue; // 👈 si está vacío, no valida pattern
-      }
+			for (const field in rules) {
+				const value = data[field];
+				const rule = rules[field];
 
-      // ✅ pattern (formato)
-      if (rule.pattern) {
-        const str = String(value ?? "").trim();
-        if (!rule.pattern.test(str)) {
-          triggerError(field, rule.message || `Formato inválido en ${field}.`);
-          valid = false;
-          continue;
-        }
-      }
-    }
+				const isEmpty =
+					value === null ||
+					value === undefined ||
+					(typeof value === "string" && value.trim() === "") ||
+					(Array.isArray(value) && value.length === 0);
 
-    return valid;
-  };
+				// ✅ requerido
+				if (rule.required && isEmpty) {
+					triggerError(
+						field,
+						rule.message || `El campo ${field} es obligatorio.`,
+					);
+					valid = false;
+					continue;
+				}
 
-  return { localErrors, errorKey, triggerError, clearError, validateFields };
+				// ✅ minLength
+				if (rule.minLength) {
+					const str = String(value ?? "");
+					if (str.length < rule.minLength) {
+						triggerError(
+							field,
+							rule.message || `Mínimo ${rule.minLength} caracteres.`,
+						);
+						valid = false;
+					}
+				}
+
+				// ✅ equals
+				if (Object.hasOwn(rule, "equals")) {
+					if ((value ?? "") !== (rule.equals ?? "")) {
+						triggerError(
+							field,
+							rule.message || `El campo ${field} no coincide.`,
+						);
+						valid = false;
+					}
+				}
+
+				// ✅ pattern
+				if (rule.pattern) {
+					const str = String(value ?? "").trim();
+					if (!rule.pattern.test(str)) {
+						triggerError(
+							field,
+							rule.message || `Formato inválido en ${field}.`,
+						);
+						valid = false;
+					}
+				}
+			}
+
+			return valid;
+		},
+		[triggerError],
+	);
+
+	return { localErrors, errorKey, triggerError, clearError, validateFields };
 }
