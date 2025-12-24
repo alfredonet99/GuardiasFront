@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { FiCloud, FiHome, FiPackage } from "react-icons/fi";
+import { FiBriefcase, FiCloud, FiLayers, FiPackage } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
-import { useMenuVisibilityFromRoutes } from "../../helpers/MenuPermissions";
+import { useMenuVisibilityFromRoutes } from "../../../helpers/MenuPermissions";
 
-export default function OperacionesLayout({ isExpanded }) {
+export default function OperacionesClient({ isExpanded, isAdminWrap = false }) {
 	const [open, setOpen] = useState(false);
 	const { canView } = useMenuVisibilityFromRoutes();
 
@@ -25,6 +25,11 @@ export default function OperacionesLayout({ isExpanded }) {
 			icon: <FiCloud />,
 			label: "Clientes Veeam",
 		},
+		{
+			to: "/operaciones/app",
+			icon: <FiLayers />,
+			label: "Aplicativos",
+		},
 	];
 
 	const visibleItems = menuItems.filter((item) => canView(item.to));
@@ -36,10 +41,10 @@ export default function OperacionesLayout({ isExpanded }) {
 				type="button"
 				onClick={() => setOpen((v) => !v)}
 				className="flex items-center px-1.5 py-2 text-white hover:bg-blue-700 dark:hover:bg-slate-700 rounded"
-				title={isExpanded ? "" : "Panel Admin"}
+				title={isExpanded ? "" : "Operaciones"}
 			>
 				<span className="flex items-center gap-2 overflow-hidden">
-					<FiHome className="text-xl shrink-0" />
+					<FiBriefcase className="text-xl shrink-0" />
 					<span
 						className={[
 							"whitespace-nowrap pr-8 transition-all duration-200",
@@ -55,7 +60,8 @@ export default function OperacionesLayout({ isExpanded }) {
 						aria-hidden="true"
 						focusable="false"
 						className={[
-							"w-4 h-4 ml-8 text-white transition-transform duration-200",
+							"w-4 h-4 text-white transition-transform duration-200",
+							isAdminWrap ? "ml-5" : "ml-8",
 							isExpanded ? (open ? "rotate-0" : "-rotate-90") : "opacity-0",
 						].join(" ")}
 						viewBox="0 0 20 20"

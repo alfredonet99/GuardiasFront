@@ -26,4 +26,7 @@ export default [
 		"clientveeam",
 		["browse"],
 	),
+
+	//=== App ===
+	r("/operaciones/app", "ListApp", "appclient", ["browse"]),
 ];

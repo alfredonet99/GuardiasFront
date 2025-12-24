@@ -16,10 +16,10 @@ import {
 	SearchGlobal,
 } from "../icons/exportIcon";
 import SessionExpiredModal from "../Modals/Sesion/FinishSesion";
-import OperacionesLayout from "./Operaciones";
 import PageHeader from "./PageHeader";
 import Profile from "./profile";
 import RoutePageTitleManager from "./RouteLayout";
+import OperacionesAdminWrapper from "./Wrapper/OpereacionesWrapper";
 
 export default function MainLayout() {
 	const [permDenied, setPermDenied] = useState(false);
@@ -39,8 +39,6 @@ export default function MainLayout() {
 	useEffect(() => {
 		const onStorage = (e) => {
 			if (e.key !== LOGOUT_BROADCAST_KEY) return;
-
-			// limpio flags para que NO aparezca modal al recargar
 			localStorage.removeItem("token");
 			localStorage.removeItem("user");
 			localStorage.removeItem("permissions");
@@ -52,7 +50,7 @@ export default function MainLayout() {
 			localStorage.removeItem("expired_at");
 			localStorage.removeItem("session_reason");
 			localStorage.removeItem("inactive_account");
-			localStorage.removeItem("session_expired"); // compat vieja
+			localStorage.removeItem("session_expired");
 
 			window.location.assign("/login");
 		};
@@ -61,10 +59,9 @@ export default function MainLayout() {
 		return () => window.removeEventListener("storage", onStorage);
 	}, []);
 
-	// ✅ logout sincronizado
 	const handleLogout = () => {
-		localStorage.setItem(LOGOUT_BROADCAST_KEY, Date.now().toString()); // 🔔 avisa a las demás
-		logout(); // tu logout actual
+		localStorage.setItem(LOGOUT_BROADCAST_KEY, Date.now().toString());
+		logout();
 		window.location.assign("/login");
 	};
 
@@ -77,7 +74,6 @@ export default function MainLayout() {
 			if (!isLeader) return;
 			if (localStorage.getItem("sessionExpired") === "1") return;
 
-			// ✅ throttle anti doble-disparo (focus + visibility suelen caer juntos)
 			const now = Date.now();
 			if (now - lastRunRef.current < 1500) return; // 1.5s
 			lastRunRef.current = now;
@@ -89,13 +85,10 @@ export default function MainLayout() {
 	);
 
 	useEffect(() => {
-		// 1) al montar
 		run("mount");
 
-		// 2) cuando regresa foco
 		const onFocus = () => run("focus");
 
-		// 3) cuando vuelve visible (tab)
 		const onVisibility = () => {
 			if (document.visibilityState === "visible") run("visibility");
 		};
@@ -146,7 +139,7 @@ export default function MainLayout() {
 					</NavLink>
 
 					<AdminPanel isExpanded={isHovered} />
-					<OperacionesLayout isExpanded={isHovered} />
+					<OperacionesAdminWrapper isExpanded={isHovered} />
 
 					<button
 						type="button"
