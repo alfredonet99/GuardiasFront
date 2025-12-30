@@ -1,7 +1,20 @@
 import { useState } from "react";
-import { FiBriefcase, FiCloud, FiLayers, FiPackage } from "react-icons/fi";
+import { FiBriefcase, FiCloud, FiPackage } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
 import { useMenuVisibilityFromRoutes } from "../../../helpers/MenuPermissions";
+
+export const OPERACIONES_CLIENT_ITEMS = [
+	{
+		to: "/operaciones/clientes/netsuite/list-client-net",
+		icon: <FiPackage />,
+		label: "Clientes Netsuite",
+	},
+	{
+		to: "/operaciones/clientes/veeam/lista-client-veeam",
+		icon: <FiCloud />,
+		label: "Clientes Veeam",
+	},
+];
 
 export default function OperacionesClient({ isExpanded, isAdminWrap = false }) {
 	const [open, setOpen] = useState(false);
@@ -14,25 +27,9 @@ export default function OperacionesClient({ isExpanded, isAdminWrap = false }) {
 	const itemInactive =
 		"text-white/90 hover:bg-blue-700/70 dark:text-slate-200 dark:hover:bg-slate-700";
 
-	const menuItems = [
-		{
-			to: "/operaciones/clientes/netsuite/list-client-net",
-			icon: <FiPackage />,
-			label: "Clientes Netsuite",
-		},
-		{
-			to: "/operaciones/clientes/veeam/ver-client-veeam",
-			icon: <FiCloud />,
-			label: "Clientes Veeam",
-		},
-		{
-			to: "/operaciones/app",
-			icon: <FiLayers />,
-			label: "Aplicativos",
-		},
-	];
-
-	const visibleItems = menuItems.filter((item) => canView(item.to));
+	const visibleItems = OPERACIONES_CLIENT_ITEMS.filter((item) =>
+		canView(item.to),
+	);
 	if (visibleItems.length === 0) return null;
 
 	return (
@@ -55,6 +52,7 @@ export default function OperacionesClient({ isExpanded, isAdminWrap = false }) {
 						Clientes
 					</span>
 				</span>
+
 				{isExpanded && (
 					<svg
 						aria-hidden="true"
@@ -62,7 +60,7 @@ export default function OperacionesClient({ isExpanded, isAdminWrap = false }) {
 						className={[
 							"w-4 h-4 text-white transition-transform duration-200",
 							isAdminWrap ? "ml-5" : "ml-8",
-							isExpanded ? (open ? "rotate-0" : "-rotate-90") : "opacity-0",
+							open ? "rotate-0" : "-rotate-90",
 						].join(" ")}
 						viewBox="0 0 20 20"
 						fill="currentColor"

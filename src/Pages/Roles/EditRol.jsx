@@ -31,6 +31,26 @@ export default function EditRol() {
 	const [assigned, setAssigned] = useState([]);
 	const [openModules, setOpenModules] = useState({});
 
+	const LAYERS = [
+		{ key: "admin", label: "Administrador", areaId: null },
+		{ key: "op", label: "Operaciones", areaId: 1 },
+		{ key: "inf", label: "Infraestructura", areaId: 2 },
+		{ key: "com", label: "Comunicaciones", areaId: 4 },
+	];
+	const [layerKey, setLayerKey] = useState("admin");
+
+	const selectedLayer = useMemo(
+		() => LAYERS.find((l) => l.key === layerKey) ?? LAYERS[0],
+		[layerKey],
+	);
+
+	const permissionsFiltered = useMemo(() => {
+		if (!isAdmin) return permissions;
+
+		const areaId = selectedLayer.areaId;
+		return permissions.filter((p) => (p.id_area ?? null) === areaId);
+	}, [permissions, selectedLayer, isAdmin]);
+
 	const formValues = { roleName, assigned };
 	useAutoClearErrors(formValues, localErrors, clearError);
 
@@ -52,15 +72,42 @@ export default function EditRol() {
 
 				setTargetIsAdmin((role.name || "") === "Administrador");
 
-				const fromRole = Array.isArray(role.permissions)
-					? role.permissions.map((p) => p.name).filter(Boolean)
+				const fromAssigned = Array.isArray(res.data.assigned_permissions)
+					? res.data.assigned_permissions.filter(Boolean)
 					: [];
+				setAssigned(fromAssigned);
 
-				const fromAssigned = Array.isArray(res.data.assigned)
-					? res.data.assigned.filter(Boolean)
-					: [];
+				if (isAdmin) {
+					const rolePerms = Array.isArray(role?.permissions)
+						? role.permissions
+						: [];
 
-				setAssigned(fromAssigned.length ? fromAssigned : fromRole);
+					const firstAreaId =
+						rolePerms.find(
+							(p) => p?.id_area !== undefined && p?.id_area !== null,
+						)?.id_area ?? null;
+
+					let areaId = firstAreaId;
+
+					if (areaId === null) {
+						const assignedSet = new Set(fromAssigned);
+
+						const match = perms.find(
+							(p) =>
+								assignedSet.has(p?.name) &&
+								p?.id_area !== undefined &&
+								p?.id_area !== null,
+						);
+
+						areaId = match?.id_area ?? null;
+					}
+
+					const matchLayer =
+						LAYERS.find((l) => (l.areaId ?? null) === (areaId ?? null)) ??
+						LAYERS[0];
+
+					setLayerKey(matchLayer.key);
+				}
 			} catch (err) {
 				if (!alive) return;
 
@@ -76,7 +123,7 @@ export default function EditRol() {
 		return () => {
 			alive = false;
 		};
-	}, [id, showMessage]);
+	}, [id, showMessage, isAdmin]);
 
 	useEffect(() => {
 		if (loadingMe) return;
@@ -94,22 +141,20 @@ export default function EditRol() {
 
 	const grouped = useMemo(() => {
 		const groups = {};
-		permissions.forEach((perm) => {
+		permissionsFiltered.forEach((perm) => {
 			const [module] = (perm.name || "").split(".");
 			if (!module) return;
 			if (!groups[module]) groups[module] = [];
 			groups[module].push(perm);
 		});
 		return groups;
-	}, [permissions]);
+	}, [permissionsFiltered]);
 
 	useEffect(() => {
 		const initial = {};
-
 		for (const m of Object.keys(grouped)) {
 			initial[m] = true;
 		}
-
 		setOpenModules(initial);
 	}, [grouped]);
 
@@ -216,6 +261,40 @@ export default function EditRol() {
 					/>
 					<FieldError message={localErrors.roleName} resetKey={errorKey} />
 				</div>
+
+				{isAdmin && (
+					<div className="mb-4">
+						<label htmlFor="" className="font-semibold text-sm">
+							Ventanas / Capas
+						</label>
+
+						<div className="mt-2 flex flex-wrap gap-2">
+							{LAYERS.map((l) => {
+								const active = l.key === layerKey;
+
+								return (
+									<button
+										key={l.key}
+										type="button"
+										onClick={() => setLayerKey(l.key)}
+										className={[
+											"px-3 py-1.5 rounded-lg border text-sm font-semibold transition",
+											active
+												? "bg-blue-600 text-white border-blue-600"
+												: "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700",
+										].join(" ")}
+									>
+										{l.label}
+									</button>
+								);
+							})}
+						</div>
+
+						<div className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+							Mostrando permisos de: <b>{selectedLayer.label}</b>
+						</div>
+					</div>
+				)}
 
 				<div className="space-y-4 pr-1 overflow-visible">
 					{Object.entries(grouped).map(([module, perms]) => {

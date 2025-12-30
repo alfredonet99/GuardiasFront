@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { FiLayers } from "react-icons/fi";
 import { useMenuVisibilityFromRoutes } from "../../../helpers/MenuPermissions";
-import OperacionesClient from "./Operaciones";
+import OperacionesMenu, { OPERACIONES_MENU_ITEMS } from "./MenuOperaciones";
+import OperacionesClient, { OPERACIONES_CLIENT_ITEMS } from "./Operaciones";
 
 function getCachedUser() {
 	try {
@@ -21,20 +22,13 @@ export default function OperacionesAdminWrapper({ isExpanded }) {
 	const isAdmin =
 		Array.isArray(u?.roles) && u.roles.some((r) => r?.name === "Administrador");
 
-	// ✅ misma lista que OperacionesClient (solo para decidir si se muestra el wrapper)
 	const hasOperacionesItems = useMemo(() => {
-		const routes = [
-			"/operaciones/clientes/netsuite/list-client-net",
-			"/operaciones/clientes/veeam/ver-client-veeam",
-			"/operaciones/app",
-		];
-		return routes.some((to) => canView(to));
+		const all = [...OPERACIONES_CLIENT_ITEMS, ...OPERACIONES_MENU_ITEMS];
+		return all.some((it) => canView(it.to));
 	}, [canView]);
 
-	// ✅ Si no hay nada visible en Operaciones, NO muestres nada (ni wrapper ni client)
 	if (!hasOperacionesItems) return null;
 
-	// 1) Admin => wrapper
 	if (isAdmin) {
 		return (
 			<div className="w-full">
@@ -77,21 +71,25 @@ export default function OperacionesAdminWrapper({ isExpanded }) {
 						className={[
 							"overflow-hidden transition-[max-height] duration-200",
 							open ? "max-h-screen" : "max-h-0",
-							"pl-2",
+							"pl-2 space-y-2",
 						].join(" ")}
 					>
 						<OperacionesClient isExpanded={isExpanded} isAdminWrap />
+						<OperacionesMenu isExpanded={isExpanded} />
 					</div>
 				)}
 			</div>
 		);
 	}
 
-	// 2) NO admin pero area=1 => directo (y ya sabemos que sí hay algo visible)
 	if (areaId === 1) {
-		return <OperacionesClient isExpanded={isExpanded} isAdminWrap={false} />;
+		return (
+			<div className="w-full space-y-2">
+				<OperacionesClient isExpanded={isExpanded} isAdminWrap={false} />
+				<OperacionesMenu isExpanded={isExpanded} />
+			</div>
+		);
 	}
 
-	// 3) Ninguno
 	return null;
 }

@@ -19,7 +19,7 @@ import SessionExpiredModal from "../Modals/Sesion/FinishSesion";
 import PageHeader from "./PageHeader";
 import Profile from "./profile";
 import RoutePageTitleManager from "./RouteLayout";
-import OperacionesAdminWrapper from "./Wrapper/OpereacionesWrapper";
+import OperacionesAdminWrapper from "./WrapperOperaciones/OpereacionesWrapper";
 
 export default function MainLayout() {
 	const [permDenied, setPermDenied] = useState(false);

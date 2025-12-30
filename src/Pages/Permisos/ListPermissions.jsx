@@ -98,6 +98,7 @@ export default function ListPermissions() {
 							<thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-xs">
 								<tr>
 									<th className="px-4 py-3 text-left">Permiso</th>
+									<th className="px-4 py-3 text-left">Area</th>
 									<th className="px-4 py-3 text-left">Descripción</th>
 									<th className="px-4 py-3 text-center w-32">Acciones</th>
 								</tr>
@@ -110,6 +111,10 @@ export default function ListPermissions() {
 										className={`${idx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50 dark:bg-slate-900/60"} hover:bg-slate-100 dark:hover:bg-slate-800/70 transition`}
 									>
 										<td className="px-4 py-3 font-semibold"> {p.name} </td>
+										<td className="px-4 py-3 font-semibold">
+											{" "}
+											{p.area?.name ?? "Administrador"}{" "}
+										</td>
 										<td className="px-4 py-3 text-slate-600 dark:text-slate-300">
 											{" "}
 											{p.description || "—"}{" "}

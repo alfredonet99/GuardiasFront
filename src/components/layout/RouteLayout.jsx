@@ -1,9 +1,7 @@
 import {
 	FiBriefcase,
-	FiCloud,
 	FiHome,
 	FiKey,
-	FiPackage,
 	FiShield,
 	FiTerminal,
 	FiUser,
@@ -11,6 +9,7 @@ import {
 } from "react-icons/fi";
 import { useLocation } from "react-router-dom";
 import usePageTitleLabel from "../../hooks/PageNames";
+import { OPERACIONES_ROUTE_META } from "../../routes/Meta/Operaciones/MetaOp";
 
 const ROUTE_META = [
 	{ pattern: /^\/inicio$/, label: "INICIO", icon: FiHome },
@@ -21,16 +20,7 @@ const ROUTE_META = [
 	{ pattern: /^\/admin\/console(\/.*)?$/, label: "CONSOLA", icon: FiTerminal },
 	{ pattern: /^\/admin\/areas(\/.*)?$/, label: "AREAS", icon: FiBriefcase },
 
-	{
-		pattern: /^\/operaciones\/clientes\/netsuite(\/.*)?$/,
-		label: "CLIENTES NETSUITE",
-		icon: FiPackage,
-	},
-	{
-		pattern: /^\/operaciones\/clientes\/veeam(\/.*)?$/,
-		label: "Clientes Veeam",
-		icon: FiCloud,
-	},
+	...OPERACIONES_ROUTE_META,
 ];
 
 export default function RoutePageTitleManager() {

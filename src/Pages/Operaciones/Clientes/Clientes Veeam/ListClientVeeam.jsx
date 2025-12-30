@@ -8,8 +8,10 @@ import {
 } from "../../../../components/icons/Crud/exportCrud";
 import ToggleUserStatusButton from "../../../../components/UI/Active/BtnActive";
 import StatusList from "../../../../components/UI/Active/Status";
+import DeleteConfirm from "../../../../components/UI/ConfirmBtn/DeleteConfirm";
 import Paginator from "../../../../components/UI/Paginacion/PaginationUI";
 import SearchInputLong from "../../../../components/UI/Search/SearchLong";
+import useGlobalDelete from "../../../../hooks/Confirm/DeleteG";
 
 export default function ListClientVeeam() {
 	const [query, setQuery] = useState("");
@@ -26,6 +28,8 @@ export default function ListClientVeeam() {
 
 	const [error, setError] = useState(null);
 	const [statusLoadingId, setStatusLoadingId] = useState(null);
+
+	const { modal, openModal, closeModal, confirm } = useGlobalDelete();
 
 	useEffect(() => {
 		let mounted = true;
@@ -101,6 +105,41 @@ export default function ListClientVeeam() {
 		}
 	};
 
+	const handleDeleteClient = async (c) => {
+		try {
+			await privateInstance.delete(`/operaciones/cliente-veeam/${c.id}/delete`);
+
+			setClientes((prev) => prev.filter((x) => x.id !== c.id));
+		} catch (err) {
+			if (err.response?.status === 409) {
+				alert(
+					err.response.data?.message ||
+						"No se puede eliminar: el cliente tiene relaciones asignadas.",
+				);
+				return;
+			}
+
+			if (err.response?.status === 403) {
+				alert(
+					err.response.data?.message ||
+						"No tienes permiso para eliminar clientes Veeam.",
+				);
+				return;
+			}
+
+			if (err.response?.status === 404) {
+				alert(
+					err.response.data?.message ||
+						"El cliente no existe o ya fue eliminado.",
+				);
+				return;
+			}
+
+			console.error("Error al eliminar cliente Veeam:", err);
+			alert("No se pudo eliminar el cliente. Intenta de nuevo.");
+		}
+	};
+
 	return (
 		<div className="min-h-screen w-full bg-slate-100 dark:bg-slate-950 px-6 py-6 text-slate-800 dark:text-slate-200">
 			<header className="flex items-center justify-between mb-6">
@@ -141,7 +180,10 @@ export default function ListClientVeeam() {
 						<span className="text-xs text-slate-500 dark:text-slate-400">
 							{meta.total} cliente(s)
 						</span>
-						<IconCreate label={"Cliente"} />
+						<IconCreate
+							to="/operaciones/clientes/veeam/crear-client-veeam"
+							label={"Cliente"}
+						/>
 					</div>
 				</div>
 
@@ -162,7 +204,6 @@ export default function ListClientVeeam() {
 						</thead>
 
 						<tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-							{/* ✅ error dentro de la tabla, NO pantalla completa */}
 							{error ? (
 								<tr>
 									<td
@@ -204,7 +245,9 @@ export default function ListClientVeeam() {
 											{c.numCV ?? "-"}
 										</td>
 										<td className="px-4 py-3">{c.nameCV ?? "-"}</td>
-										<td className="px-4 py-3">{c.app ?? "-"}</td>
+										<td className="px-4 py-3">
+											{c.app_c_v?.nameService ?? "-"}
+										</td>
 										<td className="px-4 py-3">{c.backup ?? "-"}</td>
 
 										<td className="px-4 py-3">
@@ -223,8 +266,12 @@ export default function ListClientVeeam() {
 
 										<td className="px-4 py-3 text-center">
 											<div className="flex justify-center gap-2">
-												<IconShow />
-												<IconEdit />
+												<IconShow
+													to={`/operaciones/clientes/veeam/${c.id}/ver-client-veeam`}
+												/>
+												<IconEdit
+													to={`/operaciones/clientes/veeam/${c.id}/editar-client-veeam`}
+												/>
 
 												<ToggleUserStatusButton
 													active={!!c.activo}
@@ -233,7 +280,14 @@ export default function ListClientVeeam() {
 													onToggle={() => onToggleClientStatus(c.id, c.activo)}
 												/>
 
-												<IconDelete />
+												<IconDelete
+													onClick={() =>
+														openModal({
+															message: `¿Quieres eliminar el cliente "${c.nameCV} con ID ${c.numCV}? \nEsta acción no se podrá revertir.`,
+															onConfirm: () => handleDeleteClient(c),
+														})
+													}
+												/>
 											</div>
 										</td>
 									</tr>
@@ -242,11 +296,15 @@ export default function ListClientVeeam() {
 						</tbody>
 					</table>
 				</div>
-
-				{/* ✅ paginador siempre visible cuando haya total */}
 				{meta.total > 0 && (
 					<Paginator page={page} lastPage={meta.last_page} setPage={setPage} />
 				)}
+				<DeleteConfirm
+					isOpen={modal.isOpen}
+					message={modal.message}
+					onCancel={closeModal}
+					onConfirm={confirm}
+				/>
 			</section>
 		</div>
 	);

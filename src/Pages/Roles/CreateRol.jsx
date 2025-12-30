@@ -27,6 +27,24 @@ export default function CreateRole() {
 	const [assigned, setAssigned] = useState([]);
 	const [openModules, setOpenModules] = useState({});
 
+	const LAYERS = [
+		{ key: "admin", label: "Administrador", areaId: null },
+		{ key: "op", label: "Operaciones", areaId: 1 },
+		{ key: "inf", label: "Infraestructura", areaId: 2 },
+		{ key: "com", label: "Comunicaciones", areaId: 4 },
+	];
+	const [layerKey, setLayerKey] = useState("admin");
+
+	const selectedLayer = useMemo(
+		() => LAYERS.find((l) => l.key === layerKey) ?? LAYERS[0],
+		[layerKey],
+	);
+
+	const permissionsFiltered = useMemo(() => {
+		const areaId = selectedLayer.areaId;
+		return permissions.filter((p) => (p.id_area ?? null) === areaId);
+	}, [permissions, selectedLayer]);
+
 	const formValues = { roleName, assigned };
 	useAutoClearErrors(formValues, localErrors, clearError);
 
@@ -34,7 +52,7 @@ export default function CreateRole() {
 		if (loadingMe) return;
 
 		if (!isAdmin) {
-			setLoading(false); // para que no se quede cargando
+			setLoading(false);
 			return;
 		}
 
@@ -63,13 +81,13 @@ export default function CreateRole() {
 
 	const grouped = useMemo(() => {
 		const groups = {};
-		permissions.forEach((perm) => {
+		permissionsFiltered.forEach((perm) => {
 			const [module] = perm.name.split(".");
 			if (!groups[module]) groups[module] = [];
 			groups[module].push(perm);
 		});
 		return groups;
-	}, [permissions]);
+	}, [permissionsFiltered]);
 
 	useEffect(() => {
 		const initial = {};
@@ -174,6 +192,38 @@ export default function CreateRole() {
 					<FieldError message={localErrors.roleName} resetKey={errorKey} />
 				</div>
 
+				<div className="mb-4">
+					<label htmlFor="" className="font-semibold text-sm">
+						Ventana / Capa
+					</label>
+
+					<div className="mt-2 flex flex-wrap gap-2">
+						{LAYERS.map((l) => {
+							const active = l.key === layerKey;
+
+							return (
+								<button
+									key={l.key}
+									type="button"
+									onClick={() => setLayerKey(l.key)}
+									className={[
+										"px-3 py-1.5 rounded-lg border text-sm font-semibold transition",
+										active
+											? "bg-blue-600 text-white border-blue-600"
+											: "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700",
+									].join(" ")}
+								>
+									{l.label}
+								</button>
+							);
+						})}
+					</div>
+
+					<div className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+						Mostrando permisos de: <b>{selectedLayer.label}</b>
+					</div>
+				</div>
+
 				<div className="space-y-4 pr-1 overflow-visible">
 					{Object.entries(grouped).map(([module, perms]) => {
 						const isOpen = openModules[module] ?? true;
@@ -187,7 +237,7 @@ export default function CreateRole() {
 									type="button"
 									onClick={() => toggleModule(module)}
 									className="w-full flex items-center justify-between px-3 py-2 rounded-md border border-slate-300/70 dark:border-slate-700
-                bg-slate-200 text-slate-800 dark:bg-slate-900/80 dark:text-slate-50 text-left font-semibold text-sm md:text-base capitalize hover:bg-slate-300 dark:hover:bg-slate-800/80 transition"
+                					bg-slate-200 text-slate-800 dark:bg-slate-900/80 dark:text-slate-50 text-left font-semibold text-sm md:text-base capitalize hover:bg-slate-300 dark:hover:bg-slate-800/80 transition"
 								>
 									<span>
 										{module}{" "}
@@ -237,8 +287,7 @@ export default function CreateRole() {
 															{perm.name}
 														</div>
 														<div className="text-xs text-slate-500 dark:text-slate-400">
-															{" "}
-															{perm.description}{" "}
+															{perm.description}
 														</div>
 													</div>
 												</label>
@@ -251,7 +300,9 @@ export default function CreateRole() {
 					})}
 					<FieldError message={localErrors.assigned} resetKey={errorKey} />
 				</div>
+
 				<FlashMessage message={message} />
+
 				<div className="mt-6 flex justify-end">
 					<button
 						type="button"

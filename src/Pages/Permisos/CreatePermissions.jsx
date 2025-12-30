@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FiLayers, FiPlusCircle } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { privateInstance } from "../../api/axios";
@@ -40,25 +40,57 @@ export default function CreatePermissions() {
 		show: true,
 	});
 
-	const formValues = { moduleSelected, permName, moduleCRUD, crudSelected };
+	// ====== ÁREAS (NUEVO) ======
+	const [areas, setAreas] = useState([]);
+	const [areaSingle, setAreaSingle] = useState("");
+	const [areaCRUD, setAreaCRUD] = useState("");
+
+	useEffect(() => {
+		const fetchAreas = async () => {
+			try {
+				const res = await privateInstance.get("/areas/options");
+				setAreas(res.data || []);
+			} catch (e) {
+				console.error("Error cargando áreas:", e);
+			}
+		};
+		fetchAreas();
+	}, []);
+	// ===========================
+
+	const formValues = {
+		moduleSelected,
+		permName,
+		moduleCRUD,
+		crudSelected,
+		areaSingle,
+		areaCRUD,
+	};
 	useAutoClearErrors(formValues, localErrors, clearError);
 
 	const toggleCrud = (key) => {
 		setCrudSelected((prev) => ({ ...prev, [key]: !prev[key] }));
 	};
+
 	const handleCreateSingle = async () => {
 		const rules = {
+			areaSingle: { required: true, message: "Debes seleccionar un área." },
 			moduleSelected: {
 				required: true,
 				message: "Debes seleccionar un módulo.",
 			},
 			permName: { required: true, message: "Escribe un nombre de permiso." },
 		};
-		const isValid = validateFields(rules, { moduleSelected, permName });
+		const isValid = validateFields(rules, {
+			areaSingle,
+			moduleSelected,
+			permName,
+		});
 		if (!isValid) return;
 
 		try {
 			await privateInstance.post("/permissions/crear", {
+				id_area: Number(areaSingle),
 				module: moduleSelected,
 				name: permName,
 				description: permDescription,
@@ -76,6 +108,7 @@ export default function CreatePermissions() {
 
 	const handleCreateCrud = async () => {
 		const rules = {
+			areaCRUD: { required: true, message: "Debes seleccionar un área." },
 			moduleCRUD: { required: true, message: "Debes seleccionar un módulo." },
 			crudSelected: {
 				required: true,
@@ -88,6 +121,7 @@ export default function CreatePermissions() {
 			.map(([key]) => key);
 
 		const isValid = validateFields(rules, {
+			areaCRUD,
 			moduleCRUD,
 			crudSelected: selectedCRUD.length > 0 ? selectedCRUD : "",
 		});
@@ -108,6 +142,7 @@ export default function CreatePermissions() {
 
 		try {
 			await privateInstance.post("/permissions/crear-crud", {
+				id_area: Number(areaCRUD),
 				module: moduleCRUD,
 				crud: crudPayload,
 			});
@@ -162,6 +197,30 @@ export default function CreatePermissions() {
 
 				{tab === "single" && (
 					<div className="space-y-4 animate-fadeIn">
+						{/* ====== ÁREA (NUEVO) ====== */}
+						<div>
+							<label htmlFor="permission_area_single" className="font-medium">
+								Área
+							</label>
+							<select
+								value={areaSingle}
+								onChange={(e) => setAreaSingle(e.target.value)}
+								className="mt-1 w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-600 outline-none"
+							>
+								<option value="">Selecciona un área...</option>
+								{areas.map((a) => (
+									<option key={a.id} value={a.id}>
+										{a.name}
+									</option>
+								))}
+							</select>
+							<FieldError
+								message={localErrors.areaSingle}
+								resetKey={errorKey}
+							/>
+						</div>
+						{/* ========================== */}
+
 						<div>
 							<label htmlFor="permission_module" className="font-medium">
 								Módulo
@@ -224,6 +283,28 @@ export default function CreatePermissions() {
 
 				{tab === "crud" && (
 					<div className="space-y-4 animate-fadeIn">
+						{/* ====== ÁREA (NUEVO) ====== */}
+						<div>
+							<label htmlFor="permission_area_crud" className="font-medium">
+								Área
+							</label>
+							<select
+								value={areaCRUD}
+								onChange={(e) => setAreaCRUD(e.target.value)}
+								className="mt-1 w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 
+              					bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-600 outline-none"
+							>
+								<option value="">Selecciona un área...</option>
+								{areas.map((a) => (
+									<option key={a.id} value={a.id}>
+										{a.name}
+									</option>
+								))}
+							</select>
+							<FieldError message={localErrors.areaCRUD} resetKey={errorKey} />
+						</div>
+						{/* ========================== */}
+
 						<div>
 							<label htmlFor="permission_curd" className="font-medium">
 								Módulo para generar CRUD

@@ -12,6 +12,9 @@ export function formatDate(value) {
 // ✅ Fecha + hora: DD/MM/YYYY HH:mm
 export function formatDateTime(value) {
 	if (!value) return "—";
+
 	const d = dayjs(value);
-	return d.isValid() ? d.format("DD/MM/YYYY HH:mm") : "—";
+	if (!d.isValid()) return "—";
+
+	return d.format("dddd D [de] MMMM [del] YYYY - HH:mm");
 }
