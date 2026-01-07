@@ -1,4 +1,4 @@
-import { FiLayers, FiUserCheck } from "react-icons/fi";
+import { FiInbox, FiLayers, FiUserCheck } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
 import { useMenuVisibilityFromRoutes } from "../../../helpers/MenuPermissions";
 
@@ -7,15 +7,16 @@ export const OPERACIONES_MENU_ITEMS = [
 		to: "/operaciones/app",
 		label: "Aplicativos",
 		icon: <FiLayers />,
-		collapsedTitle: "Aplicativos",
-		widthExpanded: "w-[112px]",
 	},
 	{
 		to: "/operaciones/guardias",
 		label: "Guardias",
 		icon: <FiUserCheck />,
-		collapsedTitle: "Guardias",
-		widthExpanded: "w-[92px]",
+	},
+	{
+		to: "/operaciones/tickets",
+		icon: <FiInbox />,
+		label: "Tickets",
 	},
 ];
 

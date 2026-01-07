@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { privateInstance } from "../../../api/axios";
 import {
 	IconCreate,
@@ -6,54 +6,55 @@ import {
 	IconEdit,
 	IconShow,
 } from "../../../components/icons/Crud/exportCrud";
+import Paginator from "../../../components/UI/Paginacion/PaginationUI";
 import SearchInputLong from "../../../components/UI/Search/SearchLong";
 import { formatDateTime } from "../../../utils/date";
 
 export default function Guardias() {
+	const [query, setQuery] = useState("");
+	const [search, setSearch] = useState("");
 	const [guardias, setGuardias] = useState([]);
 	const [statusMap, setStatusMap] = useState({});
-	const [search, setSearch] = useState("");
-
 	const [loading, setLoading] = useState(true);
-	const [initialLoaded, setInitialLoaded] = useState(false);
+	const [page, setPage] = useState(1);
+	const [meta, setMeta] = useState({ last_page: 1, total: 0, per_page: 0 });
 	const [error, setError] = useState(null);
 
 	useEffect(() => {
-		let mounted = true;
-
 		const fetchGuardias = async () => {
 			setLoading(true);
 			setError(null);
 
 			try {
-				const res = await privateInstance.get("/operaciones/guardias");
-				if (!mounted) return;
+				const res = await privateInstance.get("/operaciones/guardias", {
+					params: { search, page },
+				});
 
-				const { guardias, statusMap } = res.data;
+				const pag = res.data?.guardias;
+				const rows = pag?.data || [];
 
-				setGuardias(Array.isArray(guardias) ? guardias : []);
-				setStatusMap(statusMap || {});
-				setInitialLoaded(true);
+				setGuardias(Array.isArray(rows) ? rows : []);
+				setStatusMap(res.data?.statusMap || {});
+				setMeta({
+					last_page: pag?.last_page ?? 1,
+					total: pag?.total ?? (rows?.length || 0),
+					per_page: pag?.per_page ?? 20,
+				});
 			} catch (e) {
-				if (!mounted) return;
-
 				setError(
 					e?.response?.data?.message ||
 						e?.message ||
 						"Error al cargar la lista de guardias",
 				);
-				setInitialLoaded(true);
+				setGuardias([]);
+				setMeta({ last_page: 1, total: 0, per_page: 0 });
 			} finally {
-				if (mounted) setLoading(false);
+				setLoading(false);
 			}
 		};
 
 		fetchGuardias();
-
-		return () => {
-			mounted = false;
-		};
-	}, []);
+	}, [search, page]);
 
 	return (
 		<div className="min-h-screen w-full bg-slate-100 dark:bg-slate-950 px-6 py-6 text-slate-800 dark:text-slate-200">
@@ -63,7 +64,8 @@ export default function Guardias() {
 				</h1>
 
 				<div className="flex items-center gap-3">
-					<IconCreate label="Registro" to="/operaciones/app/crear" />
+					{/* Ajusta la ruta si tu crear guardia es otra */}
+					<IconCreate label="Registro" to="/operaciones/guardias/crear" />
 				</div>
 			</header>
 
@@ -71,71 +73,72 @@ export default function Guardias() {
 				<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
 					<div className="relative w-full md:max-w-sm">
 						<SearchInputLong
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
-							placeholder="Buscar por ID, nombre o fecha inicial..."
+							value={query}
+							onChange={(e) => setQuery(e.target.value)}
+							onDebouncedChange={(val) => {
+								if ((val ?? "").trim() === (search ?? "").trim()) return;
+								setSearch(val);
+								setPage(1);
+							}}
+							placeholder="Buscar por ID, usuario, fecha o estatus..."
 						/>
 					</div>
 
-					<span className="text-xs text-slate-500 dark:text-slate-400"></span>
+					<span className="text-xs text-slate-500 dark:text-slate-400">
+						{meta.total} guardia(s)
+					</span>
 				</div>
+
 				<div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
-					<table className="min-w-full text-sm">
-						<thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-xs">
-							<tr>
-								<th className="px-4 py-3 text-left">ID GUARDIA</th>
-								<th className="px-4 py-3 text-left">USUARIO</th>
-								<th className="px-4 py-3 text-left">FECHA Y HORA DE ENTRADA</th>
-								<th className="px-4 py-3 text-left">FECHA Y HORA DE SALIDA</th>
-								<th className="px-4 py-3 text-left">ESTATUS</th>
-								<th className="px-4 py-3 ">ACCIONES</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-							{error ? (
+					{loading ? (
+						<div className="p-6 text-center text-slate-500 dark:text-slate-400">
+							Cargando guardias...
+						</div>
+					) : error ? (
+						<div className="p-6 text-center text-red-600">{error}</div>
+					) : guardias.length === 0 ? (
+						<div className="p-6 text-center text-slate-500 dark:text-slate-400">
+							No hay registros
+						</div>
+					) : (
+						<table className="min-w-full text-sm">
+							<thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-xs">
 								<tr>
-									<td
-										colSpan={5}
-										className="px-4 py-6 text-center text-red-600"
-									>
-										{error}
-									</td>
+									<th className="px-4 py-3 text-left">ID GUARDIA</th>
+									<th className="px-4 py-3 text-left">USUARIO</th>
+									<th className="px-4 py-3 text-left">
+										FECHA Y HORA DE ENTRADA
+									</th>
+									<th className="px-4 py-3 text-left">
+										FECHA Y HORA DE SALIDA
+									</th>
+									<th className="px-4 py-3 text-left">ESTATUS</th>
+									<th className="px-4 py-3 text-center w-32">ACCIONES</th>
 								</tr>
-							) : loading ? (
-								<tr>
-									<td
-										colSpan={5}
-										className="px-4 py-6 text-center text-slate-500 dark:text-slate-400"
-									>
-										Cargando aplicativos...
-									</td>
-								</tr>
-							) : guardias.length === 0 ? (
-								<tr>
-									<td
-										colSpan={5}
-										className="px-4 py-6 text-center text-slate-500 dark:text-slate-400"
-									>
-										No hay registros
-									</td>
-								</tr>
-							) : (
-								guardias.map((g) => (
+							</thead>
+
+							<tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+								{guardias.map((g, idx) => (
 									<tr
 										key={g.id}
-										className="hover:bg-slate-50 dark:hover:bg-slate-800"
+										className={`${
+											idx % 2 === 0
+												? "bg-white dark:bg-slate-900"
+												: "bg-slate-50 dark:bg-slate-900/60"
+										} hover:bg-slate-100 dark:hover:bg-slate-800/70 transition`}
 									>
-										<td className="px-4 py-3">{g.id}</td>
+										<td className="px-4 py-3 font-semibold">{g.id}</td>
+
 										<td className="px-4 py-3">{g.user?.name || "—"}</td>
-										<td className="px-4 py-3">
-											{" "}
-											{formatDateTime(g.dateInit)}{" "}
-										</td>
+
+										<td className="px-4 py-3">{formatDateTime(g.dateInit)}</td>
+
 										<td className="px-4 py-3">
 											{g.dateFinish
 												? formatDateTime(g.dateFinish)
 												: "SIN REGISTRAR AÚN"}
 										</td>
+
 										<td className="px-4 py-3">
 											<span
 												className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -149,19 +152,28 @@ export default function Guardias() {
 												{statusMap[g.status]}
 											</span>
 										</td>
+
 										<td className="px-4 py-3">
-											<div className="flex justify-center gap-2">
-												<IconShow />
-												<IconEdit />
-												<IconDelete />
+											<div className="flex items-center justify-center gap-2">
+												{/* Ajusta to / props según tu implementación real */}
+												<IconShow to={`/operaciones/guardias/${g.id}`} />
+												<IconEdit to={`/operaciones/guardias/${g.id}/editar`} />
+												<IconDelete
+													// si tu IconDelete recibe onClick o endpoint/id, ajústalo a tu estándar
+													onClick={() => console.log("delete", g.id)}
+												/>
 											</div>
 										</td>
 									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+								))}
+							</tbody>
+						</table>
+					)}
 				</div>
+
+				{!loading && meta.total > 0 && (
+					<Paginator page={page} lastPage={meta.last_page} setPage={setPage} />
+				)}
 			</section>
 		</div>
 	);

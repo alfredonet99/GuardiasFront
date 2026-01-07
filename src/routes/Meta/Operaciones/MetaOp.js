@@ -1,4 +1,10 @@
-import { FiCloud, FiLayers, FiPackage, FiUserCheck } from "react-icons/fi";
+import {
+	FiCloud,
+	FiInbox,
+	FiLayers,
+	FiPackage,
+	FiUserCheck,
+} from "react-icons/fi";
 
 export const OPERACIONES_ROUTE_META = [
 	{
@@ -20,5 +26,10 @@ export const OPERACIONES_ROUTE_META = [
 		pattern: /^\/operaciones\/guardias(\/.*)?$/,
 		label: "GUARDIAS",
 		icon: FiUserCheck,
+	},
+	{
+		pattern: /^\/operaciones\/tickets(\/.*)?$/,
+		label: "TICKETS",
+		icon: FiInbox,
 	},
 ];

@@ -54,6 +54,13 @@ export default [
 
 	//=== Guardias ===
 	r("/operaciones/guardias", "ListGuardias", "guardias", ["browse"]),
+
+	//=== Tickets ===
+	r("/operaciones/tickets", "ListTicket", "tickets", ["browse"]),
+	r("/operaciones/tickets/crear-ticket", "CreateTicket", "tickets", ["create"]),
+	r("/operaciones/tickets/:slug/editar-ticket", "EditTicket", "tickets", [
+		"edit",
+	]),
 	//=== App ===
 	r("/operaciones/app", "ListApp", "appclient", ["browse"]),
 	r("/operaciones/app/crear", "CreateApp", "appclient", ["create"]),

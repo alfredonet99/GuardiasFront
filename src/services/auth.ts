@@ -43,6 +43,8 @@ function broadcastPermissionsChanged() {
 	window.dispatchEvent(new Event("permissions:changed"));
 }
 
+const GUARDIA_MODAL_SHOW_ON_LOGIN = "guardia_modal_show_on_login_v1";
+
 export async function loginApi(payload: Credentials): Promise<LoginResponse> {
 	const { data } = await publicInstance.post<LoginResponse>("/login", payload);
 
@@ -68,6 +70,8 @@ export async function loginApi(payload: Credentials): Promise<LoginResponse> {
 	console.log(
 		`✅ Login OK. El token expira a las: ${new Date(expiresAt).toLocaleTimeString()}`,
 	);
+
+	sessionStorage.setItem(GUARDIA_MODAL_SHOW_ON_LOGIN, "1");
 
 	return data;
 }
