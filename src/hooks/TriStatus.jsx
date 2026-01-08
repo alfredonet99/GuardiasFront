@@ -11,6 +11,10 @@ import { useCallback, useMemo } from "react";
  * - No se permite tocar 2 desde tabs
  * - Acción secundaria "Concluir": 1 -> 2
  *
+ * ✅ Ajuste:
+ * - Si quieres permitir que admin cambie desde 2, pásale canSwitch: () => true
+ *   (o una regla que incluya s===2). El hook ya lo soporta.
+ *
  * 100% UI: no hace API, solo controla estado local.
  */
 export default function useTriStatus({
@@ -22,6 +26,7 @@ export default function useTriStatus({
 	labels = { 1: "Abierto", 2: "Concluido", 3: "Anulado" },
 	switchOptions = [1, 3],
 
+	// Por defecto: solo 1 o 3
 	canSwitch = (s) => s === 1 || s === 3,
 
 	secondaryActionLabel = "Concluir",
@@ -47,7 +52,12 @@ export default function useTriStatus({
 		return "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800";
 	}, [s]);
 
-	const canRenderSwitch = useMemo(() => canSwitch(s), [canSwitch, s]);
+	// ✅ Renderiza switch si está permitido por canSwitch(s) (admin) o si el status actual es una opción visible
+	const canRenderSwitch = useMemo(
+		() => canSwitch(s) || switchOptions.includes(s),
+		[canSwitch, s, switchOptions],
+	);
+
 	const canDoSecondary = useMemo(() => canSecondary(s), [canSecondary, s]);
 
 	const finalHelpText = useMemo(() => {
@@ -62,8 +72,13 @@ export default function useTriStatus({
 			if (!onChange) return;
 
 			const current = Number(value ?? 0);
-			if (!canSwitch(current)) return;
 
+			// ✅ Si estás en 2, por default NO deja cambiar.
+			// ✅ Para admin: pásale canSwitch(current)=true y sí permitirá cambiar desde 2.
+			const isCurrentInOptions = switchOptions.includes(current);
+			if (!isCurrentInOptions && !canSwitch(current)) return;
+
+			// Solo se puede seleccionar hacia opciones válidas
 			if (!switchOptions.includes(next)) return;
 
 			onChange(next);

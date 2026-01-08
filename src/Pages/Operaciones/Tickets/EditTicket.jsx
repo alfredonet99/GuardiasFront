@@ -50,6 +50,8 @@ export default function EditTicket() {
 
 	const [ticket, setTicket] = useState(null);
 
+	const [_canOverrideClosed, setCanOverrideClosed] = useState(false);
+
 	const updateField = useCallback((key, value) => {
 		setTicket((prev) => (prev ? { ...prev, [key]: value } : prev));
 	}, []);
@@ -69,11 +71,22 @@ export default function EditTicket() {
 		disabled: saving,
 		title: "Estatus",
 		labels: { 1: "Abierto", 2: "Concluido", 3: "Anulado" },
+
+		// ✅ MISMA UI: solo muestra tabs Abierto/Anulado
 		switchOptions: [1, 3],
-		canSwitch: (s) => s === 1 || s === 3,
+
+		// ✅ PERO: si es admin, sí permite cambiar aunque esté en Concluido (2)
+		canSwitch: (s) => (authIsAdmin ? true : s === 1 || s === 3),
+
 		secondaryActionLabel: "Concluir",
 		canSecondary: (s) => s === 1,
 		secondaryAction: (s) => (s === 1 ? 2 : s),
+
+		// ✅ opcional: texto para admin cuando el ticket está concluido
+		helpText:
+			authIsAdmin && Number(ticket?.status) === 2
+				? "Estatus concluido: puedes reabrirlo (Abierto) o anularlo."
+				: undefined,
 	});
 
 	// ✅ Validación tipo CreateTicket (solo arma missing[])
@@ -118,7 +131,9 @@ export default function EditTicket() {
 
 				const uPayload = ures.data || {};
 				setUsersAssignees(Array.isArray(uPayload.users) ? uPayload.users : []);
-				setAuthIsAdmin(!!uPayload.auth?.is_admin);
+				const isAdmin = !!uPayload.auth?.is_admin;
+				setAuthIsAdmin(isAdmin);
+				setCanOverrideClosed(isAdmin);
 
 				// ticket
 				const tres = await privateInstance.get(
@@ -259,7 +274,7 @@ export default function EditTicket() {
 
 						{authIsAdmin ? (
 							<div className="mb-2">
-								<label className="font-semibold text-sm">
+								<label htmlFor="" className="font-semibold text-sm">
 									Usuario Creador <span className="text-red-600">*</span>
 								</label>
 

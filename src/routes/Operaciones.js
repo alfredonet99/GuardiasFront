@@ -61,6 +61,7 @@ export default [
 	r("/operaciones/tickets/:slug/editar-ticket", "EditTicket", "tickets", [
 		"edit",
 	]),
+	r("/operaciones/tickets/:slug/ver-ticket", "ShowTicket", "tickets", ["show"]),
 	//=== App ===
 	r("/operaciones/app", "ListApp", "appclient", ["browse"]),
 	r("/operaciones/app/crear", "CreateApp", "appclient", ["create"]),

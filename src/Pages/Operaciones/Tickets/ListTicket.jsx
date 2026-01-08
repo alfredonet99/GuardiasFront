@@ -10,6 +10,7 @@ import ToggleUserStatusButton from "../../../components/UI/Active/BtnActive";
 import Paginator from "../../../components/UI/Paginacion/PaginationUI";
 import SearchInputLong from "../../../components/UI/Search/SearchLong";
 import { formatDateTime } from "../../../utils/date";
+import StatusListForHeader from "../../../components/UI/Active/StatusForHeader";
 
 export default function ListTickets() {
 	const [query, setQuery] = useState("");
@@ -23,6 +24,7 @@ export default function ListTickets() {
 
 	const [page, setPage] = useState(1);
 	const [meta, setMeta] = useState({ last_page: 1, total: 0, per_page: 50 });
+	const [statusFilter, setStatusFilter] = useState("");
 
 	useEffect(() => {
 		const fetchTickets = async () => {
@@ -31,7 +33,7 @@ export default function ListTickets() {
 
 			try {
 				const res = await privateInstance.get("/operaciones/tickets", {
-					params: { search, page },
+					params: { search, page, status: statusFilter },
 				});
 
 				// ✅ paginado Laravel: tickets.data
@@ -60,7 +62,7 @@ export default function ListTickets() {
 		};
 
 		fetchTickets();
-	}, [search, page]);
+	}, [search, page, statusFilter]);
 
 	const renderStatus = (s) => statusTicket?.[s] ?? s ?? "—";
 
@@ -118,9 +120,15 @@ export default function ListTickets() {
 					Lista Tickets
 				</h1>
 
-				<div className="flex items-center gap-3">
-					<IconCreate label="Ticket" to="/operaciones/tickets/crear-ticket" />
-				</div>
+				<div className="flex items-center gap-2 justify-end">
+									<StatusListForHeader
+  value={statusFilter}
+  onChange={(val) => {
+    setStatusFilter(val);
+    setPage(1);
+  }}
+/>
+								</div>
 			</header>
 
 			<section className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-5">
@@ -137,10 +145,12 @@ export default function ListTickets() {
 							placeholder="Buscar por ticket, usuario creador, fecha o estatus..."
 						/>
 					</div>
-
-					<span className="text-xs text-slate-500 dark:text-slate-400">
-						{meta.total} ticket(s)
-					</span>
+					<div className="flex items-center gap-3">
+						<span className="text-xs text-slate-500 dark:text-slate-400">
+							{meta.total} ticket(s)
+						</span>
+						<IconCreate label="Ticket" to="/operaciones/tickets/crear-ticket" />
+					</div>
 				</div>
 
 				<div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
@@ -155,8 +165,8 @@ export default function ListTickets() {
 							No hay registros
 						</div>
 					) : (
-						<div className="overflow-x-auto">
-							<table className="min-w-full text-sm">
+						<div className="overflow-x-auto ticket-table-zoom">
+							<table className="w-full text-sm">
 								<thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-xs">
 									<tr>
 										<th className="px-4 py-3 text-left whitespace-nowrap">
@@ -246,7 +256,9 @@ export default function ListTickets() {
 
 											<td className="px-4 py-3 whitespace-nowrap text-right">
 												<div className="inline-flex items-center justify-end gap-2">
-													<IconShow to={`/operaciones/tickets/${t.id}`} />
+													<IconShow
+														to={`/operaciones/tickets/${makeEditSlug(t)}/ver-ticket`}
+													/>
 
 													{/* ✅ SOLO 1 y 3 renderizan. 2 NO */}
 													{(Number(t.status) === 1 ||
