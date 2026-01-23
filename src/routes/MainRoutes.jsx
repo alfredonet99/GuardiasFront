@@ -48,7 +48,11 @@ export default function MainRoutes() {
 				}
 			/>
 
-			<Route element={<MainLayout />}>
+			<Route
+				element={
+					hasValidToken ? <MainLayout /> : <Navigate to="/login" replace />
+				}
+			>
 				{routeConfig.map(({ path, component, module, permissions }) => {
 					const PageComponent = Object.entries(pages).find(([p]) =>
 						p.endsWith(`/${component}.jsx`),
@@ -62,8 +66,7 @@ export default function MainRoutes() {
 							path={path}
 							element={
 								<RouteGuard module={module} required={permissions}>
-									{" "}
-									<PageComponent />{" "}
+									<PageComponent />
 								</RouteGuard>
 							}
 						/>

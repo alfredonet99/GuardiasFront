@@ -12,7 +12,7 @@ export default function ToggleUserStatusButton({
 	if (!canEdit) return null;
 
 	const base =
-		"px-3 py-1 text-white rounded-lg text-xs disabled:opacity-60 disabled:cursor-not-allowed";
+		"px-3 py-2 text-white rounded-lg text-xs disabled:opacity-60 disabled:cursor-not-allowed";
 
 	const variant = active
 		? "bg-slate-500 hover:bg-slate-700"

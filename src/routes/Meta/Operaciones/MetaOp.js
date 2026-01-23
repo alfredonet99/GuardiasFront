@@ -32,4 +32,9 @@ export const OPERACIONES_ROUTE_META = [
 		label: "TICKETS",
 		icon: FiInbox,
 	},
+	{
+		pattern: /^\/operaciones\/monitoreos(\/.*)?$/,
+		label: "MONITOREOS",
+		icon: FiInbox,
+	},
 ];

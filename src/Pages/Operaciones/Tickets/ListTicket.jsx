@@ -1,16 +1,24 @@
+// pages/Operaciones/Tickets/ListTickets.jsx
 import { useEffect, useState } from "react";
 import { privateInstance } from "../../../api/axios";
+
 import {
 	IconCreate,
 	IconDelete,
 	IconEdit,
 	IconShow,
 } from "../../../components/icons/Crud/exportCrud";
+
 import ToggleUserStatusButton from "../../../components/UI/Active/BtnActive";
+import StatusListForHeader from "../../../components/UI/Active/StatusForHeader";
+// ✅ UI reutilizable
+import TableLoadingMessage from "../../../components/UI/Loaders/TableLoader";
+import TableStateMessage from "../../../components/UI/Loaders/TableStateMessage";
 import Paginator from "../../../components/UI/Paginacion/PaginationUI";
 import SearchInputLong from "../../../components/UI/Search/SearchLong";
+// ✅ Hook reutilizable
+import useDelayedRequestLoading from "../../../hooks/DelayRequestLoad";
 import { formatDateTime } from "../../../utils/date";
-import StatusListForHeader from "../../../components/UI/Active/StatusForHeader";
 
 export default function ListTickets() {
 	const [query, setQuery] = useState("");
@@ -18,51 +26,52 @@ export default function ListTickets() {
 
 	const [tickets, setTickets] = useState([]);
 	const [statusTicket, setStatusTicket] = useState({});
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState(null);
-	const [statusLoadingId, setStatusLoadingId] = useState(null);
+	const [errorLocal, setErrorLocal] = useState(null);
+
+	// ✅ evita "No hay registros" antes de la primera carga
+	const [hasLoaded, setHasLoaded] = useState(false);
 
 	const [page, setPage] = useState(1);
 	const [meta, setMeta] = useState({ last_page: 1, total: 0, per_page: 50 });
 	const [statusFilter, setStatusFilter] = useState("");
 
+	// ✅ loading/error del fetch (mínimo 2s, cancelable)
+	const { loading, error, run } = useDelayedRequestLoading(2000);
+
+	// para tu toggle individual
+	const [statusLoadingId, setStatusLoadingId] = useState(null);
+
 	useEffect(() => {
-		const fetchTickets = async () => {
-			setLoading(true);
-			setError(null);
+		setErrorLocal(null);
 
-			try {
-				const res = await privateInstance.get("/operaciones/tickets", {
+		run(
+			(signal) =>
+				privateInstance.get("/operaciones/tickets", {
 					params: { search, page, status: statusFilter },
-				});
+					signal,
+				}),
+			{
+				mapData: (res) => res.data,
+				keepPreviousData: true,
+			},
+		).then((payload) => {
+			// cancelado => payload null, no tocar estado
+			if (!payload) return;
 
-				// ✅ paginado Laravel: tickets.data
-				const pag = res.data?.tickets;
-				const rows = pag?.data || [];
+			const pag = payload?.tickets;
+			const rows = pag?.data || [];
 
-				setTickets(Array.isArray(rows) ? rows : []);
-				setStatusTicket(res.data?.statusTicket || {});
-				setMeta({
-					last_page: pag?.last_page ?? 1,
-					total: pag?.total ?? (rows?.length || 0),
-					per_page: pag?.per_page ?? 50,
-				});
-			} catch (e) {
-				setError(
-					e?.response?.data?.message ||
-						e?.message ||
-						"Error al cargar la lista de tickets",
-				);
-				setTickets([]);
-				setStatusTicket({});
-				setMeta({ last_page: 1, total: 0, per_page: 50 });
-			} finally {
-				setLoading(false);
-			}
-		};
+			setTickets(Array.isArray(rows) ? rows : []);
+			setStatusTicket(payload?.statusTicket || {});
+			setMeta({
+				last_page: pag?.last_page ?? 1,
+				total: pag?.total ?? (Array.isArray(rows) ? rows.length : 0),
+				per_page: pag?.per_page ?? 50,
+			});
 
-		fetchTickets();
-	}, [search, page, statusFilter]);
+			setHasLoaded(true);
+		});
+	}, [search, page, statusFilter, run]);
 
 	const renderStatus = (s) => statusTicket?.[s] ?? s ?? "—";
 
@@ -72,13 +81,11 @@ export default function ListTickets() {
 		return `${num}+${id}`;
 	};
 
-	// ✅ toggle tipo clientes: 1<->3 (2 no entra)
 	const onToggleTicketStatus = async (ticketId, currentStatus) => {
 		setStatusLoadingId(ticketId);
 
 		try {
 			const cur = Number(currentStatus);
-
 			if (cur === 2) return;
 
 			const nextStatus = cur === 1 ? 3 : 1;
@@ -108,10 +115,21 @@ export default function ListTickets() {
 			);
 		} catch (e) {
 			console.error("[ListTickets] update status error:", e);
+			setErrorLocal(
+				e?.response?.data?.message ||
+					e?.message ||
+					"No se pudo actualizar el estatus.",
+			);
 		} finally {
 			setStatusLoadingId(null);
 		}
 	};
+
+	// ✅ Mientras NO ha cargado nunca: siempre muestra loader
+	const showLoading = loading || !hasLoaded;
+
+	// Prioridad de error: el del hook primero, luego el local
+	const mergedError = error || errorLocal;
 
 	return (
 		<div className="min-h-screen w-full bg-slate-100 dark:bg-slate-950 px-6 py-6 text-slate-800 dark:text-slate-200">
@@ -121,14 +139,14 @@ export default function ListTickets() {
 				</h1>
 
 				<div className="flex items-center gap-2 justify-end">
-									<StatusListForHeader
-  value={statusFilter}
-  onChange={(val) => {
-    setStatusFilter(val);
-    setPage(1);
-  }}
-/>
-								</div>
+					<StatusListForHeader
+						value={statusFilter}
+						onChange={(val) => {
+							setStatusFilter(val);
+							setPage(1);
+						}}
+					/>
+				</div>
 			</header>
 
 			<section className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-5">
@@ -138,32 +156,42 @@ export default function ListTickets() {
 							value={query}
 							onChange={(e) => setQuery(e.target.value)}
 							onDebouncedChange={(val) => {
-								if ((val ?? "").trim() === (search ?? "").trim()) return;
-								setSearch(val);
+								const next = (val ?? "").trim();
+								const prev = (search ?? "").trim();
+								if (next === prev) return;
+								setSearch(next);
 								setPage(1);
 							}}
 							placeholder="Buscar por ticket, usuario creador, fecha o estatus..."
 						/>
 					</div>
+
 					<div className="flex items-center gap-3">
 						<span className="text-xs text-slate-500 dark:text-slate-400">
 							{meta.total} ticket(s)
 						</span>
+
 						<IconCreate label="Ticket" to="/operaciones/tickets/crear-ticket" />
 					</div>
 				</div>
 
 				<div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
-					{loading ? (
-						<div className="p-6 text-center text-slate-500 dark:text-slate-400">
-							Cargando tickets...
-						</div>
-					) : error ? (
-						<div className="p-6 text-center text-red-600">{error}</div>
+					{showLoading ? (
+						<TableLoadingMessage
+							title="Cargando tickets"
+							subtitle="Optimizando búsqueda y aplicando filtros…"
+						/>
+					) : mergedError ? (
+						<TableStateMessage
+							variant="error"
+							message={
+								mergedError?.response?.data?.message ||
+								mergedError?.message ||
+								"Error al cargar la lista de tickets"
+							}
+						/>
 					) : tickets.length === 0 ? (
-						<div className="p-6 text-center text-slate-500 dark:text-slate-400">
-							No hay registros
-						</div>
+						<TableStateMessage variant="empty" message="No hay registros" />
 					) : (
 						<div className="overflow-x-auto ticket-table-zoom">
 							<table className="w-full text-sm">
@@ -221,7 +249,6 @@ export default function ListTickets() {
 											</td>
 
 											<td className="px-4 py-3 hidden lg:table-cell whitespace-nowrap">
-												{/* tu backend manda assignedUser, pero aquí ya lo tenías como assigned_user */}
 												{t.assigned_user?.name ?? t.assignedUser?.name ?? "—"}
 											</td>
 
@@ -260,7 +287,6 @@ export default function ListTickets() {
 														to={`/operaciones/tickets/${makeEditSlug(t)}/ver-ticket`}
 													/>
 
-													{/* ✅ SOLO 1 y 3 renderizan. 2 NO */}
 													{(Number(t.status) === 1 ||
 														Number(t.status) === 3) && (
 														<ToggleUserStatusButton
@@ -292,7 +318,7 @@ export default function ListTickets() {
 					)}
 				</div>
 
-				{!loading && meta.total > 0 && (
+				{!showLoading && meta.total > 0 && (
 					<Paginator page={page} lastPage={meta.last_page} setPage={setPage} />
 				)}
 			</section>

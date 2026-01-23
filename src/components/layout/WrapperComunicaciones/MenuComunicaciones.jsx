@@ -1,31 +1,23 @@
-import { FiClipboard, FiInbox, FiLayers, FiUserCheck } from "react-icons/fi";
+import { FaMicrosoft } from "react-icons/fa6";
+import { FiMapPin } from "react-icons/fi";
 import { NavLink } from "react-router-dom";
 import { useMenuVisibilityFromRoutes } from "../../../helpers/MenuPermissions";
 
-export const OPERACIONES_MENU_ITEMS = [
+export const COMUNICACIONES_MENU_ITEMS = [
 	{
-		to: "/operaciones/app",
-		label: "Aplicativos",
-		icon: <FiLayers />,
+		to: "/comunicaciones/sucursales",
+		label: "Sucursales",
+		icon: <FiMapPin />,
 	},
+
 	{
-		to: "/operaciones/guardias",
-		label: "Guardias",
-		icon: <FiUserCheck />,
-	},
-	{
-		to: "/operaciones/tickets",
-		icon: <FiInbox />,
-		label: "Tickets",
-	},
-	{
-		to: "/operaciones/monitoreos",
-		icon: <FiClipboard />,
-		label: "Monitoreos",
+		to: "/comunicaciones/microsoft",
+		label: "Microsoft",
+		icon: <FaMicrosoft />,
 	},
 ];
 
-export default function OperacionesMenu({ isExpanded }) {
+export default function ComunicacionesMenu({ isExpanded }) {
 	const { canView } = useMenuVisibilityFromRoutes();
 
 	const itemBase =
@@ -35,7 +27,7 @@ export default function OperacionesMenu({ isExpanded }) {
 	const itemInactive =
 		"text-white/90 hover:bg-blue-700/70 dark:text-slate-200 dark:hover:bg-slate-700";
 
-	const visibleItems = OPERACIONES_MENU_ITEMS.filter((it) => canView(it.to));
+	const visibleItems = COMUNICACIONES_MENU_ITEMS.filter((it) => canView(it.to));
 	if (!visibleItems.length) return null;
 
 	return (

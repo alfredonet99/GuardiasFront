@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { privateInstance } from "../../../api/axios";
+import IconEditShow from "../../../components/icons/Crud/EditShow";
 import BackButton from "../../../components/UI/ConfirmBtn/ExitConfirmShow";
 import FlashMessage from "../../../components/UI/Errors/ErrorsGlobal";
 import FormLoader from "../../../components/UI/Loaders/FormLoader";
 import useFlashMessage from "../../../hooks/Errors/ErrorMessage";
 import { formatDateTime } from "../../../utils/date";
-import IconEditShow from "../../../components/icons/Crud/EditShow";
 export default function ShowTicket() {
 	const { slug } = useParams();
 	const [ticket, setTicket] = useState(null);
@@ -24,7 +24,7 @@ export default function ShowTicket() {
 		};
 	}, [slug]);
 
-    const makeEditSlug = (ticket) => {
+	const makeEditSlug = (ticket) => {
 		const num = ticket?.numTicket ?? "0";
 		const id = ticket?.id ?? "";
 		return `${num}+${id}`;
@@ -84,9 +84,11 @@ export default function ShowTicket() {
 					<h1 className="text-3xl font-bold mx-1">Detalle del Ticket</h1>
 				</div>
 				<div className="flex items-center gap-2">
-                    <BackButton to="/operaciones/tickets" />
-                    <IconEditShow to={`/operaciones/tickets/${makeEditSlug(ticket)}/editar-ticket`}/>
-                </div>
+					<BackButton to="/operaciones/tickets" />
+					<IconEditShow
+						to={`/operaciones/tickets/${makeEditSlug(ticket)}/editar-ticket`}
+					/>
+				</div>
 			</header>
 			<section className="bg-white dark:bg-slate-900 rounded-2xl shadow border border-slate-200 dark:border-slate-800 p-8 max-w-5xl mx-auto">
 				<FlashMessage message={message} />
@@ -100,12 +102,12 @@ export default function ShowTicket() {
 							<span
 								className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-semibold border
                                 ${
-                                    Number(ticket?.status) === 1
-                                        ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800"
-                                        : Number(ticket?.status) === 2
-                                            ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
-                                            : "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700"
-                                }`}
+																	Number(ticket?.status) === 1
+																		? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800"
+																		: Number(ticket?.status) === 2
+																			? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+																			: "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700"
+																}`}
 							>
 								{statusLabel}
 							</span>

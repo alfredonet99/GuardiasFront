@@ -1,4 +1,5 @@
 import Admin from "./Admin";
+import Comunicaciones from "./Comunicaciones";
 import Operaciones from "./Operaciones";
 
 const routeConfig = [
@@ -12,6 +13,8 @@ const routeConfig = [
 
 	// === OPERACIONES ===
 	...Operaciones,
+
+	...Comunicaciones,
 ];
 
 export default routeConfig;

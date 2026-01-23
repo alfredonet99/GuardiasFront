@@ -9,6 +9,7 @@ import {
 } from "react-icons/fi";
 import { useLocation } from "react-router-dom";
 import usePageTitleLabel from "../../hooks/PageNames";
+import { COMUNICACIONES_ROUTE_META } from "../../routes/Meta/Comunicaciones/MetaCom";
 import { OPERACIONES_ROUTE_META } from "../../routes/Meta/Operaciones/MetaOp";
 
 const ROUTE_META = [
@@ -21,6 +22,8 @@ const ROUTE_META = [
 	{ pattern: /^\/admin\/areas(\/.*)?$/, label: "AREAS", icon: FiBriefcase },
 
 	...OPERACIONES_ROUTE_META,
+
+	...COMUNICACIONES_ROUTE_META,
 ];
 
 export default function RoutePageTitleManager() {

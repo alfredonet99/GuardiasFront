@@ -19,6 +19,7 @@ import SessionExpiredModal from "../Modals/Sesion/FinishSesion";
 import PageHeader from "./PageHeader";
 import Profile from "./profile";
 import RoutePageTitleManager from "./RouteLayout";
+import ComunicacionesAdminWrapper from "./WrapperComunicaciones/ComunicacionesWrapper";
 import OperacionesAdminWrapper from "./WrapperOperaciones/OpereacionesWrapper";
 
 export default function MainLayout() {
@@ -140,6 +141,7 @@ export default function MainLayout() {
 
 					<AdminPanel isExpanded={isHovered} />
 					<OperacionesAdminWrapper isExpanded={isHovered} />
+					<ComunicacionesAdminWrapper isExpanded={isHovered} />
 
 					<button
 						type="button"

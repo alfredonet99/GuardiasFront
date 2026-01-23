@@ -62,6 +62,18 @@ export default [
 		"edit",
 	]),
 	r("/operaciones/tickets/:slug/ver-ticket", "ShowTicket", "tickets", ["show"]),
+
+	//=== Monitoreos ===
+	r("/operaciones/monitoreos", "ListMonitoreos", "monitoreos", ["browse"]),
+	r("/operaciones/monitoreos/crear", "CreateMonitoreo", "monitoreos", [
+		"create",
+	]),
+	r("/operaciones/monitoreos/crear/problems", "MonitProblem", "monitoreos", [
+		"create",
+	]),
+	r("/operaciones/monitoreos/:id/editar", "EditMonitoreo", "monitoreos", [
+		"edit",
+	]),
 	//=== App ===
 	r("/operaciones/app", "ListApp", "appclient", ["browse"]),
 	r("/operaciones/app/crear", "CreateApp", "appclient", ["create"]),
