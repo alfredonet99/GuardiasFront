@@ -54,6 +54,7 @@ export default [
 
 	//=== Guardias ===
 	r("/operaciones/guardias", "ListGuardias", "guardias", ["browse"]),
+	r("/operaciones/guardias/:id/editar", "EditGuardias", "guardias", ["edit"]),
 
 	//=== Tickets ===
 	r("/operaciones/tickets", "ListTicket", "tickets", ["browse"]),

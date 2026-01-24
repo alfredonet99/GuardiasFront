@@ -141,7 +141,8 @@ export default function Guardias() {
 
 										<td className="px-4 py-3">
 											<span
-												className={`px-3 py-1 rounded-full text-xs font-medium ${
+												title={statusMap[g.status]}
+												className={`inline-flex max-w-[140px] items-center truncate rounded-full px-3 py-1 text-xs font-medium ${
 													g.status === 1
 														? "bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-300"
 														: g.status === 2
@@ -155,9 +156,14 @@ export default function Guardias() {
 
 										<td className="px-4 py-3">
 											<div className="flex items-center justify-center gap-2">
-												{/* Ajusta to / props según tu implementación real */}
-												<IconShow to={`/operaciones/guardias/${g.id}`} />
-												<IconEdit to={`/operaciones/guardias/${g.id}/editar`} />
+												{(g.status === 2 || g.status === 3) && (
+													<IconShow to={`/operaciones/guardias/${g.id}`} />
+												)}
+												{g.status === 1 && (
+													<IconEdit
+														to={`/operaciones/guardias/${g.id}/editar`}
+													/>
+												)}
 												<IconDelete
 													// si tu IconDelete recibe onClick o endpoint/id, ajústalo a tu estándar
 													onClick={() => console.log("delete", g.id)}

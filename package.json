@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
+    "lint": "npx @biomejs/biome lint ./src",
     "preview": "vite preview",
-    "check": "npx @biomejs/biome check --write ./src"
+    "check": "npx @biomejs/biome check --write ./src",
+    "format" : "npx @biomejs/biome format --write ./src"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
