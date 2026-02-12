@@ -15,7 +15,13 @@ export default function MonitOk({
 
 	metaRows = null,
 	debugExtra = null,
+
+	mode = "standalone", // ✅ NUEVO (default NO rompe nada)
+
+	// ✅ NUEVO: solo para wizard (opcional)
+	onWizardContinuePayload = null,
 }) {
+	const isWizard = mode === "wizard";
 	const [query, setQuery] = useState("");
 
 	const filtered = useMemo(() => {
@@ -26,6 +32,11 @@ export default function MonitOk({
 			const label = String(c.label ?? "").toLowerCase();
 			const name = String(c.nameCV ?? c.name ?? "").toLowerCase();
 			const code = String(c.numCV ?? c.code ?? "").toLowerCase();
+
+			// ✅ buscamos también por Veeam
+			const veeamText = String(
+				c.veeam_name ?? c.veeam_host ?? c.veeam ?? "",
+			).toLowerCase();
 
 			let metaText = "";
 			if (typeof metaRows === "function") {
@@ -39,6 +50,7 @@ export default function MonitOk({
 				label.includes(q) ||
 				name.includes(q) ||
 				code.includes(q) ||
+				veeamText.includes(q) ||
 				metaText.includes(q)
 			);
 		});
@@ -72,18 +84,16 @@ export default function MonitOk({
 					? "Sophos"
 					: "—";
 
-	/**
-	 * ✅ OK Preview (debug)
-	 * - si selectedIds tiene algo => OK = SOLO SELECCIONADOS
-	 * - si selectedIds está vacío => OK = TODOS
-	 * - estatus="1"
-	 * - ✅ siteApp NO se manda: el backend lo resuelve por cliente
-	 */
 	const okMode = useMemo(() => {
 		if (!site) return null;
 		return selectedIds.size > 0 ? "selected" : "allItems";
 	}, [site, selectedIds]);
 
+	/**
+	 * ✅ Payload OK (aquí es donde "van" los datos)
+	 * - agregamos `site` + `veeam_id` + `veeam_name`
+	 * - y dejamos campos de fecha/backup si vienen en items
+	 */
 	const okItems = useMemo(() => {
 		if (!site) return [];
 
@@ -91,8 +101,32 @@ export default function MonitOk({
 			selectedIds.size > 0 ? items.filter((c) => selectedIds.has(c.id)) : items;
 
 		return base.map((c) => ({
-			...c,
+			// ✅ Identificador principal
+			id: c.id,
+
+			// ✅ tu bandera original
 			estatus: "1",
+
+			// ✅ NUEVO: a qué site pertenece
+			site,
+
+			// ✅ NUEVO: a qué veeam pertenece (debe venir del backend)
+			veeam_id: c.veeam_id ?? c.veeam_host_id ?? null,
+			veeam_name: c.veeam_name ?? c.veeam_host ?? c.veeam ?? null,
+
+			// ✅ Campos típicos (solo si existen en tu item)
+			last_backup_at:
+				c.last_backup_at ?? c.fecha_backup ?? c.backup_date ?? null,
+			backup_status: c.backup_status ?? c.status_backup ?? null,
+			job_name: c.job_name ?? c.nombre_job ?? null,
+			repository: c.repository ?? c.repo ?? null,
+
+			// ✅ si ocupas conservar otras cosas útiles:
+			label: c.label ?? null,
+			numCV: c.numCV ?? null,
+
+			// ✅ Si prefieres mandar todo:
+			// ...c,
 		}));
 	}, [site, items, selectedIds]);
 
@@ -103,10 +137,23 @@ export default function MonitOk({
 
 	// ✅ Acción del botón principal
 	const handlePrimaryAction = () => {
-		// si hay problemas, solo continuar a Paso 2
+		// ✅ SOLO en wizard: NO guardamos aquí, solo "continuar" con payload listo
+		if (isWizard) {
+			onWizardContinuePayload?.({
+				site,
+				selectedIds: Array.from(selectedIds ?? []),
+				okItems, // ✅ YA incluye site + veeam_id + veeam_name + fechas
+			});
+			return onContinue?.();
+		}
+
+		// ✅ tu lógica original (intacta)
 		if (hasProblems) return onContinue?.();
 
-		// si NO hay problemas, guardamos aquí
+		// ✅ si tu handler espera payload, aquí puedes pasarlo:
+		// return onSubmitOk?.(okItems);
+
+		// ✅ si tu handler ya toma de un estado externo, déjalo así:
 		return onSubmitOk?.();
 	};
 
@@ -197,8 +244,25 @@ export default function MonitOk({
 					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
 						{filtered.map((c) => {
 							const checked = selectedIds.has(c.id);
+
+							// ✅ si no pasas metaRows, por default mostramos Veeam y fecha si existen
 							const rows =
-								typeof metaRows === "function" ? (metaRows(c) ?? []) : [];
+								typeof metaRows === "function"
+									? (metaRows(c) ?? [])
+									: [
+											{
+												label: "Veeam",
+												value: c.veeam_name ?? c.veeam_host ?? c.veeam ?? "—",
+											},
+											{
+												label: "Último backup",
+												value:
+													c.last_backup_at ??
+													c.fecha_backup ??
+													c.backup_date ??
+													"—",
+											},
+										];
 
 							return (
 								<SelectCard
@@ -241,14 +305,16 @@ export default function MonitOk({
 							site,
 							selected: Array.from(selectedIds),
 							itemsPreview: items.slice(0, 3),
+
 							...(site
 								? {
 										okMode,
 										okCount,
-										okPreview: okItems,
+										okPreview: okItems.slice(0, 5), // ✅ más útil
 										hasProblems,
 									}
 								: {}),
+
 							...(debugExtra ? { debugExtra } : {}),
 						},
 						null,
@@ -277,7 +343,7 @@ export default function MonitOk({
 						disabled={!site || items.length === 0}
 						className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
 					>
-						{hasProblems ? "Continuar" : "Guardar"}
+						{isWizard ? "Continuar" : hasProblems ? "Continuar" : "Guardar"}
 					</button>
 				</div>
 			</div>

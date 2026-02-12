@@ -350,9 +350,12 @@ export default function ListMonitoreos() {
 															/>
 														) : null}
 
-														<IconEdit
-															to={`/operaciones/monitoreos/${row.id}/editar`}
-														/>
+														{/* ✅ SOLO si está ABIERTO */}
+														{concluidoNum === 1 ? (
+															<IconEdit
+																to={`/operaciones/monitoreos/${row.id}/editar`}
+															/>
+														) : null}
 
 														<IconDelete
 															onClick={() => console.log("delete", row.id)}

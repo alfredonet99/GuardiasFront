@@ -6,7 +6,7 @@ import ConfirmModal from "../../Modals/Confirm/ModalConfirm";
 
 export default function ExitConfirm({
 	to = "/",
-	label = "Volver",
+	label = "Abandonar",
 	title = "¿Salir sin guardar?",
 	message = "Tienes cambios sin guardar. Si sales ahora, se perderán los cambios no guardados.",
 	confirmText = "Sí, salir sin guardar",

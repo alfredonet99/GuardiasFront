@@ -1,15 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { privateInstance } from "../../../../api/axios";
 import BackButton from "../../../../components/UI/ConfirmBtn/ExitConfirmShow";
 import FlashMessage from "../../../../components/UI/Errors/ErrorsGlobal";
 import useFlashMessage from "../../../../hooks/Errors/ErrorMessage";
+import { formatDate } from "../../../../utils/date";
+
+const PER_PAGE = 10; // ✅ prueba 1 en 1
 
 export default function ShowClientVeeam() {
 	const { id } = useParams();
 
 	const [loading, setLoading] = useState(true);
 	const [cliente, setCliente] = useState(null);
+
+	// ✅ paginación (front)
+	const [page, setPage] = useState(1);
 
 	const { message, showMessage, clearMessage } = useFlashMessage();
 
@@ -55,6 +61,37 @@ export default function ShowClientVeeam() {
 		};
 	}, [id, clearMessage, showMessage]);
 
+	// ✅ backend manda dateRest no-null y único (A) (igual lo aseguramos)
+	const restoreDates = useMemo(() => {
+		const rows = Array.isArray(cliente?.monit_v) ? cliente.monit_v : [];
+		const uniq = Array.from(
+			new Set(
+				rows.map((r) => String(r?.dateRest ?? "").trim()).filter(Boolean),
+			),
+		);
+		return uniq;
+	}, [cliente]);
+
+	// ✅ cuando cambie la data, regresamos a la primer página
+	useEffect(() => {
+		setPage(1);
+	}, [restoreDates.length]);
+
+	const totalPages = useMemo(() => {
+		return Math.max(1, Math.ceil(restoreDates.length / PER_PAGE));
+	}, [restoreDates.length]);
+
+	const pageItems = useMemo(() => {
+		const start = (page - 1) * PER_PAGE;
+		return restoreDates.slice(start, start + PER_PAGE);
+	}, [restoreDates, page]);
+
+	// ✅ clamp por si cambia el array y la page queda fuera
+	useEffect(() => {
+		if (page > totalPages) setPage(totalPages);
+		if (page < 1) setPage(1);
+	}, [page, totalPages]);
+
 	if (loading) {
 		return (
 			<div className="p-8 text-center text-slate-500 dark:text-slate-300">
@@ -63,7 +100,6 @@ export default function ShowClientVeeam() {
 		);
 	}
 
-	console.log(cliente);
 	return (
 		<div className="min-h-screen w-full px-8 py-8 bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200">
 			<header className="flex items-center justify-between mb-8">
@@ -85,7 +121,6 @@ export default function ShowClientVeeam() {
 						{/* Tarjeta principal */}
 						<div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 px-6 py-6">
 							<div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-6">
-								{/* ID */}
 								<div>
 									<div className="text-sm text-slate-500 dark:text-slate-400">
 										ID Cliente
@@ -95,7 +130,6 @@ export default function ShowClientVeeam() {
 									</div>
 								</div>
 
-								{/* Nombre */}
 								<div>
 									<div className="text-sm text-slate-500 dark:text-slate-400">
 										Nombre del Cliente
@@ -105,7 +139,6 @@ export default function ShowClientVeeam() {
 									</div>
 								</div>
 
-								{/* Aplicativo */}
 								<div>
 									<div className="text-sm text-slate-500 dark:text-slate-400">
 										Aplicativo
@@ -115,7 +148,6 @@ export default function ShowClientVeeam() {
 									</div>
 								</div>
 
-								{/* Storage */}
 								<div>
 									<div className="text-sm text-slate-500 dark:text-slate-400">
 										Almacenamiento
@@ -125,7 +157,6 @@ export default function ShowClientVeeam() {
 									</div>
 								</div>
 
-								{/* Jobs */}
 								<div>
 									<div className="text-sm text-slate-500 dark:text-slate-400">
 										Cantidad de Jobs
@@ -137,12 +168,10 @@ export default function ShowClientVeeam() {
 									</div>
 								</div>
 
-								{/* Status */}
 								<div>
 									<div className="text-sm text-slate-500 dark:text-slate-400">
 										Estatus
 									</div>
-
 									<div className="mt-2">
 										<span
 											className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-semibold border ${
@@ -157,18 +186,65 @@ export default function ShowClientVeeam() {
 								</div>
 							</div>
 						</div>
-						<table className="min-w-full text-left">
+
+						{/* ✅ HISTORIAL PUNTOS DE RESTAURACIÓN */}
+						<table className="min-w-full text-left border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
 							<thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-sm">
-								<th className="px-4 py-3 text-center">
-									HISTORIAL PUNTOS DE RESTAURACION
-								</th>
-							</thead>
-							<tbody className="text-slate-700 dark:text-slate-300">
-								<tr className="border-t border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
-									<th className="px-4 py-3 text-center">hola</th>
+								<tr>
+									<th className="px-4 py-3 text-center">
+										HISTORIAL PUNTOS DE RESTAURACIÓN
+									</th>
 								</tr>
+							</thead>
+
+							<tbody className="text-slate-700 dark:text-slate-300">
+								{restoreDates.length ? (
+									pageItems.map((dateStr) => (
+										<tr
+											key={dateStr}
+											className="border-t border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition"
+										>
+											<td className="px-4 py-3 text-center font-semibold">
+												{formatDate(dateStr)}
+											</td>
+										</tr>
+									))
+								) : (
+									<tr className="border-t border-slate-200 dark:border-slate-700">
+										<td className="px-4 py-3 text-center text-slate-500 dark:text-slate-400">
+											Sin puntos de restauración registrados.
+										</td>
+									</tr>
+								)}
 							</tbody>
 						</table>
+
+						{/* ✅ CONTROLES PAGINACIÓN */}
+						{restoreDates.length > 0 ? (
+							<div className="mt-3 flex items-center justify-between gap-3">
+								<button
+									type="button"
+									onClick={() => setPage((p) => Math.max(1, p - 1))}
+									disabled={page <= 1}
+									className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold disabled:opacity-50"
+								>
+									Anterior
+								</button>
+
+								<div className="text-sm text-slate-600 dark:text-slate-300">
+									Página <b>{page}</b> de <b>{totalPages}</b>
+								</div>
+
+								<button
+									type="button"
+									onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+									disabled={page >= totalPages}
+									className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold disabled:opacity-50"
+								>
+									Siguiente
+								</button>
+							</div>
+						) : null}
 
 						<div className="h-px bg-slate-200 dark:bg-slate-800" />
 					</div>

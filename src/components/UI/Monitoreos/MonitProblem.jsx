@@ -67,9 +67,22 @@ export default function MonitProblem({
 
 	metaChips = null,
 
-	// ✅ NUEVO: submit aquí cuando SÍ hay problemas
+	// ✅ submit standalone (solo cuando NO es wizard)
 	onSubmitProblems = null,
+
+	// ✅ wizard
+	mode = "standalone",
+	onContinue = null,
+
+	// ✅ options por item (para ocultar status=1 en "new")
+	getStatusOptions = null,
+
+	// ✅ concluir item (solo BD)
+	// firma esperada: (clientId, item, formRow) => void
+	onConcludeItem = null,
 }) {
+	const isWizard = mode === "wizard";
+
 	const { isOpen, toggle, openAll, closeAll, openCount } = useAccordion({
 		single: false,
 		defaultOpenIds: [],
@@ -143,15 +156,35 @@ export default function MonitProblem({
 
 						const title = c.label ?? c.nameCV ?? c.name ?? `ID ${c.id}`;
 
+						const itemStatusOptions =
+							typeof getStatusOptions === "function"
+								? (getStatusOptions(c, f) ?? safeStatusOptions)
+								: safeStatusOptions;
+
+						const isDb = c?._source === "db";
+						const canShowConclude =
+							isDb && typeof onConcludeItem === "function";
+						const isAlreadyConcluded = String(f?.estatus ?? "") === "1";
+
 						return (
 							<div
 								key={c.id}
 								className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden"
 							>
-								<button
-									type="button"
+								{/* biome-ignore lint/a11y/useSemanticElements: Se usa div interactivo para no romper estructura/estilos; se mantiene role, tabIndex y onKeyDown */}
+								<div
+									role="button"
+									tabIndex={0}
 									onClick={() => toggle(c.id)}
-									className="w-full text-left px-4 py-3 flex items-start justify-between gap-3"
+									onKeyDown={(e) => {
+										if (e.key === "Enter" || e.key === " ") {
+											e.preventDefault();
+											toggle(c.id);
+										}
+									}}
+									className="w-full text-left px-4 py-3 flex items-start justify-between gap-3 cursor-pointer select-none"
+									aria-expanded={open}
+									aria-controls={`monit_panel_${c.id}`}
 								>
 									<div className="min-w-0">
 										<div className="font-semibold truncate">{title}</div>
@@ -171,15 +204,39 @@ export default function MonitProblem({
 									</div>
 
 									<div className="shrink-0 flex items-center gap-2 text-slate-500">
+										{/* ✅ BOTÓN CONCLUIR (solo BD) */}
+										{canShowConclude ? (
+											<button
+												type="button"
+												onClick={(e) => {
+													e.stopPropagation();
+													onConcludeItem?.(c.id, c, f);
+												}}
+												disabled={loading || isAlreadyConcluded}
+												className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition
+    bg-emerald-600 text-white border-emerald-600
+    hover:bg-emerald-700 hover:border-emerald-700
+    active:bg-emerald-800 active:border-emerald-800
+    disabled:opacity-50"
+												title={
+													isAlreadyConcluded
+														? "Ya está concluido (estatus 1)"
+														: "Marcar como concluido (estatus 1)"
+												}
+											>
+												Concluir
+											</button>
+										) : null}
+
 										<span className="text-xs">
 											{open ? "Ocultar" : "Abrir"}
 										</span>
 										<Chevron open={open} />
 									</div>
-								</button>
+								</div>
 
 								{open ? (
-									<div className="px-4 pb-4">
+									<div id={`monit_panel_${c.id}`} className="px-4 pb-4">
 										<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 											<div>
 												<label htmlFor="" className="text-xs font-semibold">
@@ -193,7 +250,7 @@ export default function MonitProblem({
 													}
 													className={fieldBase}
 												>
-													{safeStatusOptions.map((o) => (
+													{itemStatusOptions.map((o) => (
 														<option key={String(o.value)} value={o.value}>
 															{o.label}
 														</option>
@@ -255,7 +312,7 @@ export default function MonitProblem({
 				)}
 			</div>
 
-			{/* ✅ NUEVO: barra inferior para Guardar cuando hay problemas */}
+			{/* ✅ barra inferior */}
 			<div className="sticky bottom-0 w-full mt-6 border-t border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur">
 				<div className="px-6 py-4 flex items-center justify-end gap-2">
 					<button
@@ -268,12 +325,11 @@ export default function MonitProblem({
 
 					<button
 						type="button"
-						onClick={onSubmitProblems}
+						onClick={isWizard ? onContinue : onSubmitProblems}
 						disabled={loading || items.length === 0}
-						className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold
-              hover:opacity-95 disabled:opacity-50"
+						className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:opacity-95 disabled:opacity-50"
 					>
-						Guardar
+						{isWizard ? "Continuar" : "Guardar"}
 					</button>
 				</div>
 			</div>

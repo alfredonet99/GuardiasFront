@@ -1,13 +1,25 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import {
+	forwardRef,
+	useCallback,
+	useEffect,
+	useImperativeHandle,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { privateInstance } from "../../../api/axios";
 
 import useGuardiaCloseData from "../../../hooks/Guardia/getcloseGuard";
+import BackBtnSection from "../../icons/BtnBackSection";
 import TicketNumeric from "../Tickets/TicketNumeric";
 import UserSelect from "../Tickets/userSelect";
 import WordCountInput from "../WordCount/InputCount";
 import WordCountTextarea from "../WordCount/TextAreaCount";
 
-export default function TicketGuardiaEdit() {
+const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
+	{ onBackToMonitoreos }, // ✅ NUEVO
+	ref,
+) {
 	const {
 		booting,
 		guardia,
@@ -31,7 +43,6 @@ export default function TicketGuardiaEdit() {
 	const [openMap, setOpenMap] = useState({});
 	const firstAutoOpenedRef = useRef(false);
 
-	// ✅ Helpers MEMO/CB para que Biome no marque deps
 	const isNewTicket = useCallback((t) => !t?.id && !!t?.local_id, []);
 	const makeLocalId = useCallback(
 		() => `local_${Date.now()}_${Math.random().toString(16).slice(2)}`,
@@ -80,6 +91,7 @@ export default function TicketGuardiaEdit() {
 
 	const canAddNew = !booting && !saving && !hasIncompleteNew;
 
+	// ✅ users + auth context
 	useEffect(() => {
 		let mounted = true;
 
@@ -121,6 +133,7 @@ export default function TicketGuardiaEdit() {
 		};
 	}, []);
 
+	// ✅ auto-open primer ticket
 	useEffect(() => {
 		if (booting) return;
 		if (firstAutoOpenedRef.current) return;
@@ -134,6 +147,7 @@ export default function TicketGuardiaEdit() {
 		firstAutoOpenedRef.current = true;
 	}, [booting, orderedTickets]);
 
+	// ✅ regla de asignación para no-admin
 	useEffect(() => {
 		if (authIsAdmin) return;
 		if (!authUserId) return;
@@ -146,10 +160,6 @@ export default function TicketGuardiaEdit() {
 
 			if (status === 2 && assigned !== authUserId) {
 				updateTicketLocal(key, { assigned_user_id: authUserId });
-			}
-
-			if (status !== 2 && assigned === authUserId) {
-				updateTicketLocal(key, { assigned_user_id: "" });
 			}
 		});
 	}, [authIsAdmin, authUserId, tickets, updateTicketLocal]);
@@ -200,6 +210,7 @@ export default function TicketGuardiaEdit() {
 					(u) => String(u.id) !== String(authUserId),
 				);
 			}
+
 			return usersAssignees;
 		},
 		[authIsAdmin, usersAssignees, authUserId],
@@ -223,7 +234,7 @@ export default function TicketGuardiaEdit() {
 			t.assigned_user_id = String(authUserId);
 		}
 
-		setTickets((prev) => [...(prev ?? []), t]); // ✅ siempre al final (debajo)
+		setTickets((prev) => [...(prev ?? []), t]);
 		setOpenMap((prev) => ({ ...prev, [String(local_id)]: true }));
 	}, [canAddNew, makeLocalId, authIsAdmin, authUserId, setTickets]);
 
@@ -240,6 +251,77 @@ export default function TicketGuardiaEdit() {
 		},
 		[setTickets],
 	);
+
+	// =========================
+	// ✅ NUEVO: mapa id->nombre para resumen
+	// =========================
+	const usersMap = useMemo(() => {
+		const m = new Map();
+		(usersAssignees ?? []).forEach((u) => {
+			m.set(String(u?.id), String(u?.name ?? u?.email ?? u?.username ?? "—"));
+		});
+		return m;
+	}, [usersAssignees]);
+
+	// =========================
+	// ✅ NUEVO: snapshot para RESUMEN (pendientes / concluidos por usuario)
+	// =========================
+	const getTicketsSnapshot = useCallback(() => {
+		const arr = Array.isArray(tickets) ? tickets : [];
+
+		const normalized = arr.map((t) => {
+			const key = t?.id ? String(t.id) : String(t?.local_id ?? "");
+			const assignedId = String(t?.assigned_user_id ?? "").trim();
+			const assignedName =
+				usersMap.get(assignedId) ?? (assignedId ? `ID ${assignedId}` : "—");
+
+			return {
+				_key: key || `row_${Math.random().toString(16).slice(2)}`,
+				_from: t?.id ? "db" : "new",
+
+				id: t?.id ?? null,
+				local_id: t?.local_id ?? null,
+
+				numTicket: t?.numTicket ?? "",
+				numTicketNoct: t?.numTicketNoct ?? "",
+				titleTicket: t?.titleTicket ?? "",
+				descriptionTicket: t?.descriptionTicket ?? t?.description ?? "",
+
+				status: Number(t?.status ?? 1),
+				assigned_user_id: assignedId || "",
+				assigned_user_name: assignedName,
+			};
+		});
+
+		// ✅ reglas:
+		// - nuevos => pendientes
+		// - BD: status==2 => concluidos, sino => pendientes
+		const pending = normalized.filter(
+			(x) => x._from === "new" || x.status !== 2,
+		);
+		const concluded = normalized.filter(
+			(x) => x._from === "db" && x.status === 2,
+		);
+
+		const concludedByUser = concluded.reduce((acc, t) => {
+			const k = t.assigned_user_name || "—";
+			if (!acc[k]) acc[k] = [];
+			acc[k].push(t);
+			return acc;
+		}, {});
+
+		return {
+			pending,
+			concluded,
+			concludedByUser,
+			counters: {
+				total: normalized.length,
+				pending: pending.length,
+				concluded: concluded.length,
+				newTickets: normalized.filter((x) => x._from === "new").length,
+			},
+		};
+	}, [tickets, usersMap]);
 
 	const closePayloadPreview = useMemo(
 		() => ({
@@ -259,20 +341,74 @@ export default function TicketGuardiaEdit() {
 		[tickets],
 	);
 
+	/**
+	 * ✅ El padre llamará esto.
+	 * - aquí NO hacemos navigate
+	 */
+	const submitClose = useCallback(async () => {
+		console.log("[TicketGuardiaEdit] payload preview =>", closePayloadPreview);
+		const res = await closeGuardia();
+		console.log("[TicketGuardiaEdit] result =>", res);
+		return res;
+	}, [closePayloadPreview, closeGuardia]);
+
+	const validateBeforeContinue = useCallback(() => {
+		const arr = Array.isArray(tickets) ? tickets : [];
+
+		for (const t of arr) {
+			const titleOk = String(t?.titleTicket ?? "").trim().length > 0;
+			const descOk = String(t?.descriptionTicket ?? "").trim().length > 0;
+			const userOk = String(t?.assigned_user_id ?? "").trim().length > 0;
+
+			if (titleOk && descOk && userOk) continue;
+
+			const keyId = t?.id ?? t?.local_id;
+
+			if (keyId != null) {
+				setOpenMap((prev) => ({ ...prev, [String(keyId)]: true }));
+			}
+
+			const missing = [
+				!titleOk ? "Título" : null,
+				!descOk ? "Descripción" : null,
+				!userOk ? "Usuario asignado" : null,
+			].filter(Boolean);
+
+			return {
+				ok: false,
+				invalidKey: keyId ?? null,
+				message: `Faltan campos obligatorios en un ticket: ${missing.join(", ")}.`,
+			};
+		}
+
+		return { ok: true };
+	}, [tickets]);
+
+	useImperativeHandle(
+		ref,
+		() => ({
+			submitClose,
+			isBusy: () => saving || booting,
+			getTicketsSnapshot,
+			validateBeforeContinue,
+		}),
+		[submitClose, saving, booting, getTicketsSnapshot, validateBeforeContinue],
+	);
+
 	return (
 		<section className="bg-white dark:bg-slate-900 rounded-xl shadow border border-slate-200 dark:border-slate-800 p-6">
 			<header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-4">
 				<div>
-					<h2 className="text-lg font-bold">Tickets</h2>
+					<h2 className="text-lg font-bold">TICKETS</h2>
 				</div>
 
-				<div className="text-xs text-slate-600 dark:text-slate-300">
-					{guardia ? (
-						<div className="flex items-center gap-2">
-							<span className="font-semibold">Guardia activa:</span>
-							<span className="font-mono">#{guardia.id}</span>
-						</div>
+				{/* ✅ NUEVO: botón para regresar a monitoreos */}
+				<div className="flex items-center justify-end gap-2">
+					{typeof onBackToMonitoreos === "function" ? (
+						<BackBtnSection label="Monitoreos" onClick={onBackToMonitoreos} />
 					) : null}
+
+					<div className="text-xs text-slate-600 dark:text-slate-300" />
 				</div>
 			</header>
 
@@ -290,7 +426,7 @@ export default function TicketGuardiaEdit() {
 				<div className="p-4 text-red-600">{error}</div>
 			) : orderedTickets.length === 0 ? (
 				<div className="p-4 text-slate-500 dark:text-slate-400">
-					No hay tickets asignados para mostrar.
+					No hay tickets asignados para mostrar. Puedes crear uno nuevo.
 				</div>
 			) : (
 				<div className="space-y-6">
@@ -444,10 +580,14 @@ export default function TicketGuardiaEdit() {
 											users={getUsersForTicket(t)}
 											loading={loadingUsers}
 											error={usersError}
-											required
 											placeholder="Selecciona un usuario"
 											disabled={!isLocal && isDone}
 										/>
+
+										<div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+											Si no seleccionas un usuario, el ticket se asignará
+											automáticamente a ti.
+										</div>
 									</div>
 								)}
 							</div>
@@ -456,12 +596,8 @@ export default function TicketGuardiaEdit() {
 				</div>
 			)}
 
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-6">
-				<p className="text-sm text-slate-600 dark:text-slate-300">
-					Puedes añadir múltiples tickets; completa el ticket nuevo antes de
-					crear otro.
-				</p>
-
+			{/* ✅ SOLO botón de añadir (sin cerrar aquí) */}
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end mt-6">
 				<div className="flex items-center justify-end gap-2">
 					<button
 						type="button"
@@ -476,57 +612,23 @@ export default function TicketGuardiaEdit() {
 					>
 						Añadir Ticket
 					</button>
-
-					<button
-						type="button"
-						onClick={closeGuardia}
-						disabled={saving || booting || !guardia}
-						className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition disabled:opacity-50"
-					>
-						{saving ? "Guardando..." : "Guardar y cerrar guardia"}
-					</button>
 				</div>
 			</div>
 
 			<pre className="mt-6 p-3 rounded-lg bg-slate-950 text-slate-100 text-xs overflow-auto">
 				{JSON.stringify(
 					{
-						// ✅ estado general
 						booting,
 						saving,
 						error,
 						saveError,
-
-						// ✅ guardia (lo que te interesa)
 						guardia_is_null: guardia == null,
 						guardia_id: guardia?.id ?? null,
-						guardia_status: guardia?.status ?? null,
-						guardia_dateFinish:
-							guardia?.dateFinish ?? guardia?.date_finish ?? null,
-
-						// ✅ por qué se bloquea el botón
-						close_button_disabled: Boolean(saving || booting || !guardia),
-						close_button_reasons: {
-							saving,
-							booting,
-							guardia_missing: !guardia,
-						},
-
-						// ✅ tickets (resumen útil)
 						tickets_count: tickets?.length ?? 0,
-						tickets_summary: (tickets ?? []).map((t) => ({
-							id: t?.id ?? null,
-							local_id: t?.local_id ?? null,
-							status: t?.status ?? null,
-							assigned_user_id: t?.assigned_user_id ?? null,
-							title_ok: String(t?.titleTicket ?? "").trim().length > 0,
-							desc_ok:
-								String(t?.descriptionTicket ?? t?.description ?? "").trim()
-									.length > 0,
-						})),
-
-						// ✅ payload que vas a mandar
 						closePayloadPreview,
+
+						// ✅ debug extra (puedes quitarlo)
+						users_count: usersAssignees?.length ?? 0,
 					},
 					null,
 					2,
@@ -534,4 +636,6 @@ export default function TicketGuardiaEdit() {
 			</pre>
 		</section>
 	);
-}
+});
+
+export default TicketGuardiaEdit;

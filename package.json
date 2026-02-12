@@ -9,9 +9,10 @@
     "lint": "npx @biomejs/biome lint ./src",
     "preview": "vite preview",
     "check": "npx @biomejs/biome check --write ./src",
-    "format" : "npx @biomejs/biome format --write ./src"
+    "format": "npx @biomejs/biome format --write ./src"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "@heroicons/react": "^2.2.0",
     "@supabase/supabase-js": "^2.87.1",
     "@tailwindcss/vite": "^4.1.12",
