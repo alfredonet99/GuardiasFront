@@ -35,11 +35,9 @@ export default function CreateTicket() {
 		getAssigneesFiltered,
 
 		canAddTicket,
-		addTicketError,
 		lastTicketValidation,
 
 		saving,
-		submitResults,
 		submitTickets,
 	} = useTicketsForm({
 		onSuccessRedirect: () => navigate("/operaciones/tickets"),
@@ -90,30 +88,6 @@ export default function CreateTicket() {
 					</div>
 				) : (
 					<>
-						{addTicketError && (
-							<div className="mb-4 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
-								{addTicketError}
-							</div>
-						)}
-
-						{submitResults?.length > 0 && (
-							<div className="mb-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 px-4 py-3 text-sm">
-								<p className="font-semibold mb-2">Resultados:</p>
-								<ul className="space-y-1">
-									{submitResults.map((r) => (
-										<li
-											key={r.local_id}
-											className={r.ok ? "text-emerald-700" : "text-red-700"}
-										>
-											{r.ok ? "✅" : "❌"} {r.local_id} —{" "}
-											{r.message || (r.ok ? "OK" : "Error")}
-											{r.api_ticket_id ? ` (ID: ${r.api_ticket_id})` : ""}
-										</li>
-									))}
-								</ul>
-							</div>
-						)}
-
 						{tickets.map((t, idx) => {
 							const assigneesFiltered = getAssigneesFiltered(t.creatorUserId);
 							const opened = accordion.isOpen(t.id);
@@ -140,7 +114,9 @@ export default function CreateTicket() {
 
 											<svg
 												aria-hidden="true"
-												className={`w-5 h-5 transition-transform duration-300 ${opened ? "rotate-90" : ""}`}
+												className={`w-5 h-5 transition-transform duration-300 ${
+													opened ? "rotate-90" : ""
+												}`}
 												fill="none"
 												viewBox="0 0 24 24"
 												stroke="currentColor"

@@ -25,6 +25,51 @@ function isFilled(value) {
 	return String(value ?? "").trim().length > 0;
 }
 
+// ✅ Traducción simple de mensajes típicos de Laravel
+function translateLaravelMsg(msg, fieldKey = "") {
+	const m = String(msg ?? "").trim();
+	if (!m) return m;
+
+	// numTicket duplicado (típico)
+	if (/has already been taken/i.test(m)) {
+		// si trae "The num ticket..." o similar
+		if (/num\s*ticket/i.test(m) || fieldKey === "numTicket") {
+			return "El número de ticket ya existe. Captura uno diferente.";
+		}
+		return "Este valor ya existe. Captura uno diferente.";
+	}
+
+	// otros comunes (por si te sirven)
+	if (/The .* field is required\./i.test(m))
+		return "Este campo es obligatorio.";
+	if (/must be an integer/i.test(m))
+		return "Este campo debe ser un número entero.";
+
+	return m; // fallback: lo deja igual
+}
+
+// ✅ helper: normaliza error 422 (Laravel)
+function extractLaravelValidationMessage(e) {
+	const status = e?.response?.status;
+	const data = e?.response?.data;
+
+	if (status !== 422) return null;
+
+	const errors = data?.errors || {};
+	const firstKey = Object.keys(errors)[0];
+	const firstMsg =
+		firstKey && Array.isArray(errors[firstKey]) ? errors[firstKey][0] : null;
+
+	return {
+		status,
+		errors,
+		message: String(
+			firstMsg || data?.message || "Validación fallida. Revisa campos.",
+		),
+		firstKey: firstKey || "",
+	};
+}
+
 export default function useTicketsForm({
 	onSuccessRedirect,
 	onFlash,
@@ -42,7 +87,6 @@ export default function useTicketsForm({
 	const [addTicketError, setAddTicketError] = useState(null);
 
 	const [saving, setSaving] = useState(false);
-	const [submitResults, setSubmitResults] = useState([]);
 
 	const fireFlash = useCallback(
 		(text, type = "error") => {
@@ -237,11 +281,34 @@ export default function useTicketsForm({
 		[authIsAdmin],
 	);
 
+	// ✅ valida duplicados locales (numTicket debe ser único)
+	const validateLocalDuplicateNumTicket = useCallback(() => {
+		const map = new Map(); // numTicket -> [localIds]
+		for (const t of tickets) {
+			const n = String(t?.numTicket ?? "").trim();
+			if (!n) continue;
+			if (!map.has(n)) map.set(n, []);
+			map.get(n).push(t.id);
+		}
+
+		const duplicates = [...map.entries()].filter(([, ids]) => ids.length > 1);
+		if (!duplicates.length) return { ok: true };
+
+		const details = duplicates
+			.map(([n, ids]) => `${n} en (${ids.join(", ")})`)
+			.join(" | ");
+
+		return {
+			ok: false,
+			message: `Hay números de ticket repetidos en el formulario: ${details}. El número de ticket debe ser único.`,
+		};
+	}, [tickets]);
+
 	const submitTickets = useCallback(async () => {
 		setSaving(true);
-		setSubmitResults([]);
 		clearFlash();
 
+		// 1) validación normal
 		const validations = tickets.map((t) => ({
 			id: t.id,
 			...validateTicket(t),
@@ -253,6 +320,14 @@ export default function useTicketsForm({
 				`Hay ${invalids.length} ticket(s) incompletos. Completa: ` +
 				invalids.map((v) => `(${v.id}) ${v.missing.join(", ")}`).join(" | ");
 			fireFlash(msg, "error");
+			setSaving(false);
+			return { ok: false };
+		}
+
+		// 2) duplicados locales
+		const dupLocal = validateLocalDuplicateNumTicket();
+		if (!dupLocal.ok) {
+			fireFlash(dupLocal.message, "error");
 			setSaving(false);
 			return { ok: false };
 		}
@@ -273,27 +348,49 @@ export default function useTicketsForm({
 					message: res.data?.message ?? "OK",
 				});
 			} catch (e) {
-				results.push({
-					ok: false,
-					local_id: t.id,
-					message:
-						e?.response?.data?.message || e?.message || "Error al crear ticket",
-				});
+				const v = extractLaravelValidationMessage(e);
+
+				// ✅ si es 422, traducimos el mensaje y lo mandamos al FLASH
+				if (v?.status === 422) {
+					if (v?.errors?.numTicket?.length) {
+						const raw = String(v.errors.numTicket[0] ?? v.message);
+						const baseMsg = translateLaravelMsg(raw, "numTicket");
+
+						const dupNum = String(t?.numTicket ?? "").trim(); // ✅ número capturado
+						const msg = dupNum
+							? `❌ Ticket duplicado: ${dupNum}. ${baseMsg}`
+							: `❌ ${baseMsg}`;
+
+						fireFlash(msg, "error");
+						results.push({ ok: false, local_id: t.id, message: msg });
+						continue;
+					}
+
+					const raw = String(v.message);
+					const msg = translateLaravelMsg(raw, v.firstKey || "");
+					fireFlash(msg, "error");
+					results.push({ ok: false, local_id: t.id, message: msg });
+					continue;
+				}
+
+				const raw =
+					e?.response?.data?.message || e?.message || "Error al crear ticket";
+				const msg = translateLaravelMsg(raw);
+				fireFlash(msg, "error");
+				results.push({ ok: false, local_id: t.id, message: msg });
 			}
 		}
-
-		setSubmitResults(results);
 
 		const okCount = results.filter((r) => r.ok).length;
 		const failCount = results.length - okCount;
 
+		// ✅ CAMBIO: si falla 1 o más, NO enviar nada al final
 		if (failCount === 0) {
-			if (typeof onSuccessRedirect === "function") onSuccessRedirect();
-		} else {
 			fireFlash(
-				`Se guardaron ${okCount} y fallaron ${failCount}. Revisa resultados.`,
-				"error",
+				`✅ Se guardaron ${okCount} ticket(s) correctamente.`,
+				"success",
 			);
+			if (typeof onSuccessRedirect === "function") onSuccessRedirect();
 		}
 
 		setSaving(false);
@@ -305,6 +402,7 @@ export default function useTicketsForm({
 		onSuccessRedirect,
 		fireFlash,
 		clearFlash,
+		validateLocalDuplicateNumTicket,
 	]);
 
 	return {
@@ -326,7 +424,6 @@ export default function useTicketsForm({
 		lastTicketValidation,
 
 		saving,
-		submitResults,
 		submitTickets,
 	};
 }

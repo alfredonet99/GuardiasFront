@@ -6,9 +6,35 @@ import TableLoadingMessage from "../../Loaders/TableLoader";
 import TableStateMessage from "../../Loaders/TableStateMessage";
 import MonitProblem from "../../Monitoreos/MonitProblem";
 
+const FORCE_CHANGE_AFTER_DAYS = 7;
+
 function normalizeDateRest(v) {
 	if (!v) return "";
 	return String(v).slice(0, 10);
+}
+
+// ✅ parse robusto para "2026-02-16 10:00:00" o ISO
+function toMsSafe(dateLike) {
+	if (!dateLike) return null;
+
+	const raw = String(dateLike).trim();
+	if (!raw) return null;
+
+	// si viene "YYYY-MM-DD HH:mm:ss" => lo hacemos ISO "YYYY-MM-DDTHH:mm:ss"
+	const isoish =
+		raw.includes(" ") && !raw.includes("T") ? raw.replace(" ", "T") : raw;
+
+	const ms = Date.parse(isoish);
+	return Number.isFinite(ms) ? ms : null;
+}
+
+function ageDaysFromCreatedAt(createdAt) {
+	const ms = toMsSafe(createdAt);
+	if (!ms) return null;
+	const now = Date.now();
+	const diff = now - ms;
+	if (diff < 0) return 0;
+	return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
 function normalizeClientItemFromDb(row, site) {
@@ -39,6 +65,9 @@ function normalizeClientItemFromDb(row, site) {
 
 		veeam_id: row?.veeam_id ?? row?.siteApp ?? null,
 		veeam_name: row?.veeam_name ?? row?.siteApp_name ?? null,
+
+		// ✅ para regla +7 días
+		created_at: row?.created_at ?? row?.createdAt ?? null,
 
 		site,
 		_source: "db",
@@ -184,9 +213,17 @@ export default function MonitProblemGuard({
 
 	const problemForm = problemFormBySite?.[active] ?? {};
 
+	// ✅ snapshot inicial (para comparar cambios en items DB)
+	const [initialSnapshotBySite, setInitialSnapshotBySite] = useState(() => ({
+		veeam: {},
+	}));
+
+	const initialSnapshot = initialSnapshotBySite?.[active] ?? {};
+
 	useEffect(() => {
 		if (!attempted || loading || error) return;
 
+		// 1) precarga form (como ya lo tienes)
 		setProblemFormBySite((prev) => {
 			const nextSiteForm = { ...(prev?.[active] ?? {}) };
 			let changed = false;
@@ -210,6 +247,29 @@ export default function MonitProblemGuard({
 
 			if (!changed) return prev;
 			return { ...prev, [active]: nextSiteForm };
+		});
+
+		// 2) snapshot inicial SOLO para items DB (no lo sobre-escribimos)
+		setInitialSnapshotBySite((prev) => {
+			const cur = { ...(prev?.[active] ?? {}) };
+			let changed = false;
+
+			for (const it of mergedItems) {
+				if (it?._source !== "db") continue;
+
+				const key = String(it?.id ?? "");
+				if (!key) continue;
+				if (cur[key]) continue;
+
+				cur[key] = {
+					estatus: String(it?.estatus ?? ""),
+					observacion: String(it?.observacion ?? ""),
+				};
+				changed = true;
+			}
+
+			if (!changed) return prev;
+			return { ...prev, [active]: cur };
 		});
 	}, [attempted, loading, error, mergedItems, active]);
 
@@ -298,6 +358,7 @@ export default function MonitProblemGuard({
 			if (!item || item._source !== "db") return;
 
 			setFormError("");
+			// ✅ tu botón de concluir hoy hace esto
 			handleProblemChange(clientId, { estatus: "1" });
 		},
 		[mergedItems, handleProblemChange],
@@ -311,6 +372,13 @@ export default function MonitProblemGuard({
 		if (f?.estatus) chips.push({ label: "Estatus", value: f.estatus });
 		if (f?.last_restore_date)
 			chips.push({ label: "Restauración", value: f.last_restore_date });
+
+		// ✅ opcional: mostrar antigüedad si existe created_at
+		const days = ageDaysFromCreatedAt(c?.created_at);
+		if (Number.isFinite(days) && days !== null) {
+			chips.push({ label: "Antigüedad", value: `${days} día(s)` });
+		}
+
 		return chips;
 	}, []);
 
@@ -371,11 +439,56 @@ export default function MonitProblemGuard({
 		return { site: active, rows };
 	}, [mergedItems, problemForm, active]);
 
+	// ✅ helper: para los DB >7 días, obligar AL MENOS 1 acción:
+	// - cambiar estatus vs inicial
+	// - cambiar observación vs inicial
+	// - o concluir (estatus === "1" según tu botón)
+	const requiresActionForItem = useCallback((item) => {
+		if (!item) return false;
+		if (item?._source !== "db") return false;
+
+		const days = ageDaysFromCreatedAt(item?.created_at);
+		if (days === null) return false; // si no hay created_at, no forzamos (evita falsos bloqueos)
+		return days > FORCE_CHANGE_AFTER_DAYS;
+	}, []);
+
+	const didUserDoOneAction = useCallback(
+		(item) => {
+			const key = String(item?.id ?? "");
+			if (!key) return true;
+
+			const init = initialSnapshot?.[key] ?? {
+				estatus: String(item?.estatus ?? ""),
+				observacion: String(item?.observacion ?? ""),
+			};
+
+			const cur = problemForm?.[key] ?? {};
+			const curStatus = String(cur?.estatus ?? "").trim();
+			const curObs = String(cur?.observacion ?? "").trim();
+
+			const initStatus = String(init?.estatus ?? "").trim();
+			const initObs = String(init?.observacion ?? "").trim();
+
+			const statusChanged =
+				curStatus.length > 0 && String(curStatus) !== String(initStatus);
+
+			const obsChanged =
+				curObs.length > 0 && String(curObs) !== String(initObs);
+
+			// ✅ "concluir" según tu UI actual (botón => estatus "1")
+			const concluded = curStatus === "1";
+
+			return statusChanged || obsChanged || concluded;
+		},
+		[initialSnapshot, problemForm],
+	);
+
 	const handleContinue = useCallback(() => {
 		setFormError("");
 
 		const allRows = [...(payloadDb?.rows ?? []), ...(payloadNew?.rows ?? [])];
 
+		// ✅ tu validación original (no pasa si faltan campos)
 		const invalid = allRows.find((r) => {
 			const estatusOk = String(r.estatus ?? "").trim().length > 0;
 			const observacionOk = String(r.observacion ?? "").trim().length > 0;
@@ -390,6 +503,28 @@ export default function MonitProblemGuard({
 
 			setFormError(
 				`Falta capturar: ${missing.join(" y ")} en uno o más clientes.`,
+			);
+			return;
+		}
+
+		// ✅ NUEVA REGLA: DB con más de 7 días => obligar 1 acción (estatus u observación o concluir)
+		const mustAct = (mergedItems ?? []).filter((it) =>
+			requiresActionForItem(it),
+		);
+		const notActed = mustAct.filter((it) => !didUserDoOneAction(it));
+
+		if (notActed.length > 0) {
+			// mensaje con ejemplo
+			const first = notActed[0];
+			const label =
+				String(first?.label ?? "").trim() ||
+				(String(first?.numCV ?? "").trim() && String(first?.nameCV ?? "").trim()
+					? `${first.numCV} - ${first.nameCV}`
+					: "");
+
+			setFormError(
+				`Hay ${notActed.length} monitoreo(s) de BD con más de ${FORCE_CHANGE_AFTER_DAYS} días que requieren al menos 1 acción: cambiar Estatus, cambiar Observación o Concluir. ` +
+					(label ? `Ejemplo: ${label}.` : ""),
 			);
 			return;
 		}
@@ -428,7 +563,16 @@ export default function MonitProblemGuard({
 		});
 
 		onSaved?.(active, { payloadDb, payloadNew, mergedItems, rowsForResume });
-	}, [payloadDb, payloadNew, onSaved, active, mergedItems, problemForm]);
+	}, [
+		payloadDb,
+		payloadNew,
+		onSaved,
+		active,
+		mergedItems,
+		problemForm,
+		requiresActionForItem,
+		didUserDoOneAction,
+	]);
 
 	const renderTabs = () => (
 		<div className="flex flex-wrap items-center gap-2">
@@ -466,6 +610,11 @@ export default function MonitProblemGuard({
 					<p className="text-sm text-slate-600 dark:text-slate-400">
 						Se muestran: <b>No seleccionados</b> + <b>Pendientes BD</b>{" "}
 						(concluido=1).
+					</p>
+					<p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+						Regla: si un monitoreo viene de BD y tiene más de{" "}
+						{FORCE_CHANGE_AFTER_DAYS} días, debes hacer al menos 1 acción:
+						cambiar Estatus, cambiar Observación o Concluir.
 					</p>
 				</div>
 

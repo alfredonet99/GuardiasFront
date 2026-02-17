@@ -11,14 +11,14 @@ import {
 
 import ToggleUserStatusButton from "../../../components/UI/Active/BtnActive";
 import StatusListForHeader from "../../../components/UI/Active/StatusForHeader";
-// ✅ UI reutilizable
 import TableLoadingMessage from "../../../components/UI/Loaders/TableLoader";
 import TableStateMessage from "../../../components/UI/Loaders/TableStateMessage";
 import Paginator from "../../../components/UI/Paginacion/PaginationUI";
 import SearchInputLong from "../../../components/UI/Search/SearchLong";
-// ✅ Hook reutilizable
 import useDelayedRequestLoading from "../../../hooks/DelayRequestLoad";
 import { formatDateTime } from "../../../utils/date";
+import DeleteConfirm from "../../../components/UI/ConfirmBtn/DeleteConfirm";
+import useGlobalDelete from "../../../hooks/Confirm/DeleteG";
 
 export default function ListTickets() {
 	const [query, setQuery] = useState("");
@@ -40,6 +40,8 @@ export default function ListTickets() {
 
 	// para tu toggle individual
 	const [statusLoadingId, setStatusLoadingId] = useState(null);
+
+	const { modal, openModal, closeModal, confirm } = useGlobalDelete();
 
 	useEffect(() => {
 		setErrorLocal(null);
@@ -130,6 +132,33 @@ export default function ListTickets() {
 
 	// Prioridad de error: el del hook primero, luego el local
 	const mergedError = error || errorLocal;
+
+	const handleDeleteTicket = async (t) => {
+		try {
+			await privateInstance.delete(`/operaciones/tickets/${t.id}/delete`);
+
+			setTickets((prev) => prev.filter((x) => x.id !== t.id));
+		} catch (err) {
+			if (err.response?.status === 403) {
+				alert(
+					err.response.data?.message ||
+						"No tienes permiso para eliminar tickets.",
+				);
+				return;
+			}
+
+			if (err.response?.status === 404) {
+				alert(
+					err.response.data?.message ||
+						"El ticket no existe o ya fue eliminado.",
+				);
+				return;
+			}
+
+			console.error("Error al eliminar el ticket:", err);
+			alert("No se pudo eliminar el ticket. Intenta de nuevo.");
+		}
+	};
 
 	return (
 		<div className="min-h-screen w-full bg-slate-100 dark:bg-slate-950 px-6 py-6 text-slate-800 dark:text-slate-200">
@@ -306,7 +335,12 @@ export default function ListTickets() {
 													/>
 
 													<IconDelete
-														onClick={() => console.log("delete", t.id)}
+														onClick={() =>
+															openModal({
+																message: `¿Quieres eliminar el ticket numero "${t.numTicket}? \nEsta acción no se podrá revertir.`,
+																onConfirm: () => handleDeleteTicket(t),
+															})
+														}
 													/>
 												</div>
 											</td>
@@ -321,6 +355,13 @@ export default function ListTickets() {
 				{!showLoading && meta.total > 0 && (
 					<Paginator page={page} lastPage={meta.last_page} setPage={setPage} />
 				)}
+
+				<DeleteConfirm
+					isOpen={modal.isOpen}
+					message={modal.message}
+					onCancel={closeModal}
+					onConfirm={confirm}
+				/>
 			</section>
 		</div>
 	);

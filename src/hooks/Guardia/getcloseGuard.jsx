@@ -8,6 +8,9 @@ export default function useGuardiaCloseData() {
 	const [statusMap, setStatusMap] = useState({});
 	const [error, setError] = useState(null);
 
+	// ✅ snapshot de descripción original (solo tickets BD)
+	const [originalDescById, setOriginalDescById] = useState({});
+
 	// ✅ guardado/cierre
 	const [saving, setSaving] = useState(false);
 	const [saveError, setSaveError] = useState(null);
@@ -28,10 +31,26 @@ export default function useGuardiaCloseData() {
 				if (!mounted) return;
 
 				setGuardia(res.data?.guardia ?? null);
-				setTickets(Array.isArray(res.data?.tickets) ? res.data.tickets : []);
+
+				const rows = Array.isArray(res.data?.tickets) ? res.data.tickets : [];
+				setTickets(rows);
+
+				// ✅ guardar descripción original por ID (solo BD)
+				const snap = {};
+				for (const t of rows) {
+					if (t?.id) {
+						const desc = String(
+							t?.descriptionTicket ?? t?.description ?? "",
+						).trim();
+						snap[String(t.id)] = desc;
+					}
+				}
+				setOriginalDescById(snap);
+
 				setStatusMap(res.data?.statusMap ?? {});
 			} catch (e) {
 				if (!mounted) return;
+
 				setError(
 					e?.response?.data?.message ||
 						e?.message ||
@@ -40,6 +59,7 @@ export default function useGuardiaCloseData() {
 				setGuardia(null);
 				setTickets([]);
 				setStatusMap({});
+				setOriginalDescById({});
 			} finally {
 				if (mounted) setBooting(false);
 			}
@@ -160,9 +180,8 @@ export default function useGuardiaCloseData() {
 			});
 
 			// 4) PATCH MASIVO (⚠️ solo tickets que YA tenían id desde el GET)
-			//    Para evitar el caso: "creé un ticket asignado a otro" y luego PATCH lo intenta editar.
 			const patchTickets = (all ?? [])
-				.filter((t) => !!t?.id) // ✅ SOLO los existentes, no los recién creados
+				.filter((t) => !!t?.id)
 				.map((t) => ({
 					id: Number(t.id),
 					numTicket: t?.numTicket ? Number(t.numTicket) : 0,
@@ -190,7 +209,6 @@ export default function useGuardiaCloseData() {
 			);
 
 			// 6) refrescar state
-			// Si el endpoint de cierre NO devuelve tickets, dejamos merged.
 			setTickets(
 				Array.isArray(resClose.data?.tickets) ? resClose.data.tickets : merged,
 			);
@@ -198,7 +216,6 @@ export default function useGuardiaCloseData() {
 			if (resClose.data?.guardia) {
 				setGuardia(resClose.data.guardia);
 			} else if (resClose.data?.closed) {
-				// fallback si solo manda flags
 				setGuardia((prev) =>
 					prev
 						? {
@@ -246,5 +263,8 @@ export default function useGuardiaCloseData() {
 		creating,
 		createError,
 		createTicket,
+
+		// ✅ NUEVO
+		originalDescById,
 	};
 }

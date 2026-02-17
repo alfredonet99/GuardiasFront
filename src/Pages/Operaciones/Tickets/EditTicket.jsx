@@ -316,6 +316,7 @@ export default function EditTicket() {
 								maxDigits={7}
 								placeholder="1234567"
 								required
+								disabled
 								hint="Captura entre 2 y 7 dígitos."
 							/>
 

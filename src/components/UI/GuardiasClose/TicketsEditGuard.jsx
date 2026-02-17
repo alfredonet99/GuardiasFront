@@ -17,7 +17,7 @@ import WordCountInput from "../WordCount/InputCount";
 import WordCountTextarea from "../WordCount/TextAreaCount";
 
 const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
-	{ onBackToMonitoreos }, // ✅ NUEVO
+	{ onBackToMonitoreos },
 	ref,
 ) {
 	const {
@@ -25,12 +25,15 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 		guardia,
 		tickets,
 		setTickets,
-		statusMap,
+		_statusMap,
 		error,
 		saving,
 		saveError,
 		updateTicketLocal,
 		closeGuardia,
+
+		// ✅ NUEVO (snapshot de descripción original desde el GET)
+		originalDescById,
 	} = useGuardiaCloseData();
 
 	const [usersAssignees, setUsersAssignees] = useState([]);
@@ -252,9 +255,6 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 		[setTickets],
 	);
 
-	// =========================
-	// ✅ NUEVO: mapa id->nombre para resumen
-	// =========================
 	const usersMap = useMemo(() => {
 		const m = new Map();
 		(usersAssignees ?? []).forEach((u) => {
@@ -263,9 +263,43 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 		return m;
 	}, [usersAssignees]);
 
-	// =========================
-	// ✅ NUEVO: snapshot para RESUMEN (pendientes / concluidos por usuario)
-	// =========================
+	// =========================================================
+	// ✅ regla "2+ días => forzar cambio de descripción"
+	//    PERO: si status == 2 (concluido) => NO validar
+	// =========================================================
+	const isOlderThanDays = useCallback((createdAt, days) => {
+		if (!createdAt) return false;
+		const created = new Date(createdAt).getTime();
+		if (!Number.isFinite(created)) return false;
+		const diffMs = Date.now() - created;
+		return diffMs >= days * 24 * 60 * 60 * 1000;
+	}, []);
+
+	const mustChangeDesc = useCallback(
+		(t) => {
+			if (!t?.id) return false; // solo BD
+
+			// ✅ NUEVO: si está concluido, ya NO obligamos descripción
+			const status = Number(t?.status ?? 1);
+			if (status === 2) return false;
+
+			// ⚠️ Ajusta aquí si tu backend manda otra llave
+			const createdAt = t?.created_at;
+
+			if (!isOlderThanDays(createdAt, 2)) return false;
+
+			const original = String(originalDescById?.[String(t.id)] ?? "").trim();
+			const current = String(
+				t?.descriptionTicket ?? t?.description ?? "",
+			).trim();
+
+			if (!original) return false;
+
+			return current === original; // no cambió => bloquear
+		},
+		[isOlderThanDays, originalDescById],
+	);
+
 	const getTicketsSnapshot = useCallback(() => {
 		const arr = Array.isArray(tickets) ? tickets : [];
 
@@ -293,9 +327,6 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 			};
 		});
 
-		// ✅ reglas:
-		// - nuevos => pendientes
-		// - BD: status==2 => concluidos, sino => pendientes
 		const pending = normalized.filter(
 			(x) => x._from === "new" || x.status !== 2,
 		);
@@ -341,10 +372,6 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 		[tickets],
 	);
 
-	/**
-	 * ✅ El padre llamará esto.
-	 * - aquí NO hacemos navigate
-	 */
 	const submitClose = useCallback(async () => {
 		console.log("[TicketGuardiaEdit] payload preview =>", closePayloadPreview);
 		const res = await closeGuardia();
@@ -356,6 +383,23 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 		const arr = Array.isArray(tickets) ? tickets : [];
 
 		for (const t of arr) {
+			// ✅ Regla: BD con 2+ días => descripción debe cambiar
+			//    (pero mustChangeDesc ya ignora concluidos)
+			if (mustChangeDesc(t)) {
+				const keyId = t?.id ?? t?.local_id;
+
+				if (keyId != null) {
+					setOpenMap((prev) => ({ ...prev, [String(keyId)]: true }));
+				}
+
+				return {
+					ok: false,
+					invalidKey: keyId ?? null,
+					message:
+						"Este ticket fue creado hace más de 2 días. Debes actualizar la descripción antes de continuar.",
+				};
+			}
+
 			const titleOk = String(t?.titleTicket ?? "").trim().length > 0;
 			const descOk = String(t?.descriptionTicket ?? "").trim().length > 0;
 			const userOk = String(t?.assigned_user_id ?? "").trim().length > 0;
@@ -382,7 +426,7 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 		}
 
 		return { ok: true };
-	}, [tickets]);
+	}, [tickets, mustChangeDesc]);
 
 	useImperativeHandle(
 		ref,
@@ -402,7 +446,6 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 					<h2 className="text-lg font-bold">TICKETS</h2>
 				</div>
 
-				{/* ✅ NUEVO: botón para regresar a monitoreos */}
 				<div className="flex items-center justify-end gap-2">
 					{typeof onBackToMonitoreos === "function" ? (
 						<BackBtnSection label="Monitoreos" onClick={onBackToMonitoreos} />
@@ -435,6 +478,9 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 						const opened = isOpen(keyId);
 						const isDone = Number(t.status) === 2;
 						const isLocal = isNewTicket(t);
+
+						// ✅ mustChangeDesc ya ignora concluidos
+						const needsDescUpdate = !isLocal && mustChangeDesc(t);
 
 						return (
 							<div
@@ -588,6 +634,13 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 											Si no seleccionas un usuario, el ticket se asignará
 											automáticamente a ti.
 										</div>
+
+										{needsDescUpdate ? (
+											<div className="mt-2 p-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 text-sm">
+												Este ticket fue creado hace más de 2 días. Para
+												continuar, debes actualizar la descripción.
+											</div>
+										) : null}
 									</div>
 								)}
 							</div>
@@ -596,7 +649,6 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 				</div>
 			)}
 
-			{/* ✅ SOLO botón de añadir (sin cerrar aquí) */}
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end mt-6">
 				<div className="flex items-center justify-end gap-2">
 					<button
@@ -626,8 +678,6 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 						guardia_id: guardia?.id ?? null,
 						tickets_count: tickets?.length ?? 0,
 						closePayloadPreview,
-
-						// ✅ debug extra (puedes quitarlo)
 						users_count: usersAssignees?.length ?? 0,
 					},
 					null,
