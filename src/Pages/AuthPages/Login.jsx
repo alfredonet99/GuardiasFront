@@ -5,6 +5,8 @@ import { useFormValidation } from "../../hooks/useFormValidation";
 import { loginApi } from "../../services/auth";
 
 export default function Login() {
+	const WELCOME_BG =
+		"https://ztbplugqqtemidsmbmoy.supabase.co/storage/v1/object/public/Emial/FONDOSTRA.png";
 	const { values, errors, handleChange, handleBlur, validateForm } =
 		useFormValidation({ email: "", password: "" });
 	const [PasswordInputType, ToggleIcon] = usePasswordToggle(values.password);
@@ -53,9 +55,14 @@ export default function Login() {
 
 	return (
 		<div className="flex h-screen flex-col md:flex-row bg-gray-100 dark:bg-gray-900 transition-colors">
-			<div className="hidden md:flex w-1/2 bg-blue-600 dark:bg-blue-800 items-center justify-center text-white transition-colors">
-				<h1 className="text-3xl font-bold">Bienvenido</h1>
-			</div>
+			<div
+				className="hidden md:flex w-1/2 items-center justify-center text-white transition-colors relative overflow-hidden"
+				style={{
+					backgroundImage: `url(${WELCOME_BG})`,
+					backgroundSize: "cover",
+					backgroundPosition: "center",
+				}}
+			></div>
 
 			<div className="flex flex-1 items-center justify-center p-6">
 				<form
