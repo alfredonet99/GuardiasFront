@@ -21,4 +21,16 @@ export default [
 
 	// === Microsoft ===
 	r("/comunicaciones/microsoft", "ListMicrosoft", "microsoft", ["browse"]),
+	r(
+		"/comunicaciones/microsoft/monitoreos/crear",
+		"CreateMonitMicrosoft",
+		"microsoft",
+		["create"],
+	),
+
+	// === Monitoreos AA ===
+	r("/comunicaciones/monitoreos-aa", "ListMonitAA", "monit-aa", ["browse"]),
+	r("/comunicaciones/monitoreos-aa/crear", "CreateMonitAA", "monit-aa", [
+		"create",
+	]),
 ];

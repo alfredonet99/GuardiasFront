@@ -1,5 +1,6 @@
 import { FaMicrosoft } from "react-icons/fa";
 import { FiMapPin } from "react-icons/fi";
+import { TbNetwork } from "react-icons/tb";
 
 export const COMUNICACIONES_ROUTE_META = [
 	{
@@ -12,5 +13,11 @@ export const COMUNICACIONES_ROUTE_META = [
 		pattern: /^\/comunicaciones\/microsoft(\/.*)?$/,
 		label: "MICROSOFT",
 		icon: FaMicrosoft,
+	},
+
+	{
+		pattern: /^\/comunicaciones\/monitoreos-aa(\/.*)?$/,
+		label: "MONITOREOS REDES",
+		icon: TbNetwork,
 	},
 ];

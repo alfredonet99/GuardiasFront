@@ -1,5 +1,6 @@
 import { FaMicrosoft } from "react-icons/fa6";
 import { FiMapPin } from "react-icons/fi";
+import { TbNetwork } from "react-icons/tb";
 import { NavLink } from "react-router-dom";
 import { useMenuVisibilityFromRoutes } from "../../../helpers/MenuPermissions";
 
@@ -14,6 +15,11 @@ export const COMUNICACIONES_MENU_ITEMS = [
 		to: "/comunicaciones/microsoft",
 		label: "Microsoft",
 		icon: <FaMicrosoft />,
+	},
+	{
+		to: "/comunicaciones/monitoreos-aa",
+		label: "Monitoreos Redes",
+		icon: <TbNetwork />,
 	},
 ];
 

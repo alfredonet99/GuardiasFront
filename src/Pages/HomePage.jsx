@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { privateInstance } from "../api/axios";
 import CreateGuardiaModal from "../components/Modals/Guardias/CreateGuardia";
 import ActiveGuardiaModal from "../components/Modals/Guardias/GuardiaActiva";
+import OperacionesDash from "./Dashboard/OperacionesDash";
 
 const GUARDIA_MODAL_SHOW_ON_LOGIN = "guardia_modal_show_on_login_v1";
 
@@ -18,6 +19,14 @@ export default function HomePage() {
 	const [openCreate, setOpenCreate] = useState(false);
 	const [openActive, setOpenActive] = useState(false);
 
+	const user = useMemo(() => getCachedUser(), []);
+	const areaId = Number(user?.area_id || 0);
+	const isAdmin =
+		Array.isArray(user?.roles) &&
+		user.roles.some((r) => r?.name === "Administrador");
+
+	const isOperacionesUser = areaId === 1 && !isAdmin;
+
 	useEffect(() => {
 		const shouldShow =
 			sessionStorage.getItem(GUARDIA_MODAL_SHOW_ON_LOGIN) === "1";
@@ -25,34 +34,26 @@ export default function HomePage() {
 		if (shouldShow) sessionStorage.removeItem(GUARDIA_MODAL_SHOW_ON_LOGIN);
 		if (!shouldShow) return;
 
-		const u = getCachedUser();
-		const areaId = Number(u?.area_id || 0);
-		const isAdmin =
-			Array.isArray(u?.roles) &&
-			u.roles.some((r) => r?.name === "Administrador");
-
-		if (areaId !== 1) return;
-		if (isAdmin) return;
+		// ✅ solo aplica para operaciones (area 1) y NO admin
+		if (!isOperacionesUser) return;
 
 		(async () => {
 			try {
 				const res = await privateInstance.get("/operaciones/guardias/active");
-				if (res.data?.hasActive) {
-					setOpenActive(true); // ✅ mensaje de guardia activa
-				} else {
-					setOpenCreate(true); // ✅ modal de iniciar guardia
-				}
+				if (res.data?.hasActive) setOpenActive(true);
+				else setOpenCreate(true);
 			} catch {
 				// si falla el check, mejor no molestamos
-				return;
 			}
 		})();
-	}, []);
+	}, [isOperacionesUser]);
 
 	return (
 		<>
-			<p>Hola</p>
+			{/* ✅ Dashboard según el area */}
+			{isOperacionesUser ? <OperacionesDash /> : <p>Hola</p>}
 
+			{/* ✅ Modales (solo sentido para Operaciones, pero no estorban si están cerrados) */}
 			<CreateGuardiaModal
 				isOpen={openCreate}
 				onClose={() => setOpenCreate(false)}

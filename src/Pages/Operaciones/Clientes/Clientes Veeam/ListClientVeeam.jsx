@@ -12,6 +12,7 @@ import DeleteConfirm from "../../../../components/UI/ConfirmBtn/DeleteConfirm";
 import Paginator from "../../../../components/UI/Paginacion/PaginationUI";
 import SearchInputLong from "../../../../components/UI/Search/SearchLong";
 import useGlobalDelete from "../../../../hooks/Confirm/DeleteG";
+import { formatDateNew } from "../../../../utils/date";
 
 export default function ListClientVeeam() {
 	const [query, setQuery] = useState("");
@@ -262,7 +263,11 @@ export default function ListClientVeeam() {
 											</span>
 										</td>
 
-										<td className="px-4 py-3">hola</td>
+										<td className="px-4 py-3">
+											{c.last_restore_date
+												? formatDateNew(c.last_restore_date)
+												: "--"}
+										</td>
 
 										<td className="px-4 py-3 text-center">
 											<div className="flex justify-center gap-2">
