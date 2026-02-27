@@ -32,7 +32,7 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 		updateTicketLocal,
 		closeGuardia,
 
-		// ✅ NUEVO (snapshot de descripción original desde el GET)
+		// ✅ snapshot de descripción original desde el GET
 		originalDescById,
 	} = useGuardiaCloseData();
 
@@ -52,11 +52,12 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 		[],
 	);
 
+	// ✅ CAMBIO: YA NO exigimos assigned_user_id para considerar completo
+	//            (si viene vacío, se auto-asignará al usuario autenticado al continuar/cerrar)
 	const isCompleteTicket = useCallback((t) => {
 		const titleOk = String(t?.titleTicket ?? "").trim().length > 0;
 		const descOk = String(t?.descriptionTicket ?? "").trim().length > 0;
-		const userOk = String(t?.assigned_user_id ?? "").trim().length > 0;
-		return titleOk && descOk && userOk;
+		return titleOk && descOk;
 	}, []);
 
 	const isOpen = useCallback((id) => Boolean(openMap[String(id)]), [openMap]);
@@ -150,7 +151,7 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 		firstAutoOpenedRef.current = true;
 	}, [booting, orderedTickets]);
 
-	// ✅ regla de asignación para no-admin
+	// ✅ regla de asignación para no-admin (se mantiene tal cual la tenías)
 	useEffect(() => {
 		if (authIsAdmin) return;
 		if (!authUserId) return;
@@ -166,6 +167,19 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 			}
 		});
 	}, [authIsAdmin, authUserId, tickets, updateTicketLocal]);
+
+	// ✅ NUEVO: helper para auto-asignar al usuario autenticado si viene vacío
+	const ensureAssigneeOrSelf = useCallback(
+		(t) => {
+			if (!authUserId) return t;
+
+			const assigned = String(t?.assigned_user_id ?? "").trim();
+			if (assigned) return t;
+
+			return { ...t, assigned_user_id: String(authUserId) };
+		},
+		[authUserId],
+	);
 
 	const toggleConcluir = useCallback(
 		(ticketIdOrLocalId) => {
@@ -205,18 +219,13 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 
 	const getUsersForTicket = useCallback(
 		(t) => {
+			// admin ve todo
 			if (authIsAdmin) return usersAssignees;
 
-			const status = Number(t.status ?? 1);
-			if (status !== 2 && authUserId) {
-				return usersAssignees.filter(
-					(u) => String(u.id) !== String(authUserId),
-				);
-			}
-
+			// no-admin: ya NO filtramos al usuario autenticado
 			return usersAssignees;
 		},
-		[authIsAdmin, usersAssignees, authUserId],
+		[authIsAdmin, usersAssignees],
 	);
 
 	const addNewTicket = useCallback(() => {
@@ -233,6 +242,7 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 			status: 1,
 		};
 
+		// (se mantiene igual) para no-admin, por defecto se asigna a sí mismo
 		if (!authIsAdmin && authUserId) {
 			t.assigned_user_id = String(authUserId);
 		}
@@ -279,11 +289,9 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 		(t) => {
 			if (!t?.id) return false; // solo BD
 
-			// ✅ NUEVO: si está concluido, ya NO obligamos descripción
 			const status = Number(t?.status ?? 1);
 			if (status === 2) return false;
 
-			// ⚠️ Ajusta aquí si tu backend manda otra llave
 			const createdAt = t?.created_at;
 
 			if (!isOlderThanDays(createdAt, 2)) return false;
@@ -295,33 +303,36 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 
 			if (!original) return false;
 
-			return current === original; // no cambió => bloquear
+			return current === original;
 		},
 		[isOlderThanDays, originalDescById],
 	);
 
+	// ✅ Snapshot: aquí también reflejamos auto-asignación (para que UI/preview sea consistente)
 	const getTicketsSnapshot = useCallback(() => {
 		const arr = Array.isArray(tickets) ? tickets : [];
 
 		const normalized = arr.map((t) => {
-			const key = t?.id ? String(t.id) : String(t?.local_id ?? "");
-			const assignedId = String(t?.assigned_user_id ?? "").trim();
+			const t2 = ensureAssigneeOrSelf(t);
+
+			const key = t2?.id ? String(t2.id) : String(t2?.local_id ?? "");
+			const assignedId = String(t2?.assigned_user_id ?? "").trim();
 			const assignedName =
 				usersMap.get(assignedId) ?? (assignedId ? `ID ${assignedId}` : "—");
 
 			return {
 				_key: key || `row_${Math.random().toString(16).slice(2)}`,
-				_from: t?.id ? "db" : "new",
+				_from: t2?.id ? "db" : "new",
 
-				id: t?.id ?? null,
-				local_id: t?.local_id ?? null,
+				id: t2?.id ?? null,
+				local_id: t2?.local_id ?? null,
 
-				numTicket: t?.numTicket ?? "",
-				numTicketNoct: t?.numTicketNoct ?? "",
-				titleTicket: t?.titleTicket ?? "",
-				descriptionTicket: t?.descriptionTicket ?? t?.description ?? "",
+				numTicket: t2?.numTicket ?? "",
+				numTicketNoct: t2?.numTicketNoct ?? "",
+				titleTicket: t2?.titleTicket ?? "",
+				descriptionTicket: t2?.descriptionTicket ?? t2?.description ?? "",
 
-				status: Number(t?.status ?? 1),
+				status: Number(t2?.status ?? 1),
 				assigned_user_id: assignedId || "",
 				assigned_user_name: assignedName,
 			};
@@ -352,39 +363,73 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 				newTickets: normalized.filter((x) => x._from === "new").length,
 			},
 		};
-	}, [tickets, usersMap]);
+	}, [tickets, usersMap, ensureAssigneeOrSelf]);
 
-	const closePayloadPreview = useMemo(
-		() => ({
-			tickets: (tickets ?? []).map((t) => ({
-				id: t.id ? Number(t.id) : null,
-				local_id: t.id ? null : String(t.local_id ?? ""),
-				numTicket: t.numTicket ? Number(t.numTicket) : 0,
-				numTicketNoct: t.numTicketNoct ? Number(t.numTicketNoct) : null,
-				titleTicket: String(t.titleTicket ?? ""),
-				descriptionTicket: String(t.descriptionTicket ?? t.description ?? ""),
-				status: Number(t.status ?? 1),
-				assigned_user_id: t.assigned_user_id
-					? Number(t.assigned_user_id)
-					: null,
-			})),
-		}),
-		[tickets],
-	);
+	// ✅ Payload preview: auto-asignación aplicada antes de enviar
+	const closePayloadPreview = useMemo(() => {
+		const arr = Array.isArray(tickets) ? tickets : [];
+
+		return {
+			tickets: arr.map((t) => {
+				const t2 = ensureAssigneeOrSelf(t);
+
+				return {
+					id: t2.id ? Number(t2.id) : null,
+					local_id: t2.id ? null : String(t2.local_id ?? ""),
+					numTicket: t2.numTicket ? Number(t2.numTicket) : 0,
+					numTicketNoct: t2.numTicketNoct ? Number(t2.numTicketNoct) : null,
+					titleTicket: String(t2.titleTicket ?? ""),
+					descriptionTicket: String(
+						t2.descriptionTicket ?? t2.description ?? "",
+					),
+					status: Number(t2.status ?? 1),
+					assigned_user_id: t2.assigned_user_id
+						? Number(t2.assigned_user_id)
+						: authUserId
+							? Number(authUserId)
+							: null,
+				};
+			}),
+		};
+	}, [tickets, ensureAssigneeOrSelf, authUserId]);
 
 	const submitClose = useCallback(async () => {
+		// ✅ IMPORTANTE: antes de cerrar, reflejamos la auto-asignación en el estado local
+		//               (así el hook closeGuardia enviará ya con assigned_user_id lleno)
+		if (authUserId) {
+			const arr = Array.isArray(tickets) ? tickets : [];
+
+			const needs = arr.filter(
+				(t) => String(t?.assigned_user_id ?? "").trim() === "",
+			);
+
+			if (needs.length) {
+				needs.forEach((t) => {
+					const key = t?.id ?? t?.local_id;
+					if (key != null) {
+						updateTicketLocal(key, { assigned_user_id: String(authUserId) });
+					}
+				});
+			}
+		}
+
 		console.log("[TicketGuardiaEdit] payload preview =>", closePayloadPreview);
 		const res = await closeGuardia();
 		console.log("[TicketGuardiaEdit] result =>", res);
 		return res;
-	}, [closePayloadPreview, closeGuardia]);
+	}, [
+		closePayloadPreview,
+		closeGuardia,
+		authUserId,
+		tickets,
+		updateTicketLocal,
+	]);
 
+	// ✅ Validación: ya NO pedimos usuario asignado (se asigna automático a authUserId)
 	const validateBeforeContinue = useCallback(() => {
 		const arr = Array.isArray(tickets) ? tickets : [];
 
 		for (const t of arr) {
-			// ✅ Regla: BD con 2+ días => descripción debe cambiar
-			//    (pero mustChangeDesc ya ignora concluidos)
 			if (mustChangeDesc(t)) {
 				const keyId = t?.id ?? t?.local_id;
 
@@ -402,9 +447,9 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 
 			const titleOk = String(t?.titleTicket ?? "").trim().length > 0;
 			const descOk = String(t?.descriptionTicket ?? "").trim().length > 0;
-			const userOk = String(t?.assigned_user_id ?? "").trim().length > 0;
 
-			if (titleOk && descOk && userOk) continue;
+			// ✅ usuario ya no se valida aquí
+			if (titleOk && descOk) continue;
 
 			const keyId = t?.id ?? t?.local_id;
 
@@ -415,7 +460,6 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 			const missing = [
 				!titleOk ? "Título" : null,
 				!descOk ? "Descripción" : null,
-				!userOk ? "Usuario asignado" : null,
 			].filter(Boolean);
 
 			return {
@@ -479,7 +523,6 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 						const isDone = Number(t.status) === 2;
 						const isLocal = isNewTicket(t);
 
-						// ✅ mustChangeDesc ya ignora concluidos
 						const needsDescUpdate = !isLocal && mustChangeDesc(t);
 
 						return (
@@ -618,7 +661,7 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 										<UserSelect
 											id={`assigned_${keyId}`}
 											name={`ticket_${keyId}_assigned`}
-											label="Usuario Asignado"
+											label="Usuario Asignado (opcional)"
 											value={String(t.assigned_user_id ?? "")}
 											onChange={(v) =>
 												updateTicket(keyId, { assigned_user_id: v })
@@ -626,7 +669,7 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 											users={getUsersForTicket(t)}
 											loading={loadingUsers}
 											error={usersError}
-											placeholder="Selecciona un usuario"
+											placeholder="Selecciona un usuario (opcional)"
 											disabled={!isLocal && isDone}
 										/>
 
@@ -659,7 +702,7 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 						title={
 							canAddNew
 								? "Añadir Ticket"
-								: "Completa el ticket nuevo: Título, Descripción y Usuario asignado"
+								: "Completa el ticket nuevo: Título y Descripción"
 						}
 					>
 						Añadir Ticket
