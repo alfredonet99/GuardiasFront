@@ -11,14 +11,14 @@ import {
 
 import ToggleUserStatusButton from "../../../components/UI/Active/BtnActive";
 import StatusListForHeader from "../../../components/UI/Active/StatusForHeader";
+import DeleteConfirm from "../../../components/UI/ConfirmBtn/DeleteConfirm";
 import TableLoadingMessage from "../../../components/UI/Loaders/TableLoader";
 import TableStateMessage from "../../../components/UI/Loaders/TableStateMessage";
 import Paginator from "../../../components/UI/Paginacion/PaginationUI";
 import SearchInputLong from "../../../components/UI/Search/SearchLong";
+import useGlobalDelete from "../../../hooks/Confirm/DeleteG";
 import useDelayedRequestLoading from "../../../hooks/DelayRequestLoad";
 import { formatDateTime } from "../../../utils/date";
-import DeleteConfirm from "../../../components/UI/ConfirmBtn/DeleteConfirm";
-import useGlobalDelete from "../../../hooks/Confirm/DeleteG";
 
 export default function ListTickets() {
 	const [query, setQuery] = useState("");
@@ -235,7 +235,7 @@ export default function ListTickets() {
 										</th>
 
 										<th className="px-4 py-3 text-left whitespace-nowrap hidden lg:table-cell">
-											Asignado a
+											ACTUALIZO
 										</th>
 
 										<th className="px-4 py-3 text-left">Título</th>

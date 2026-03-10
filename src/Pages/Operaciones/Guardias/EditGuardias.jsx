@@ -1,7 +1,8 @@
 // Pages/Operaciones/Guardias/EditGuardias.jsx
-import { useCallback, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
+import emailjs from "@emailjs/browser";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import ExitConfirm from "../../../components/UI/ConfirmBtn/ExitConfirm";
 import MonitOkGuard from "../../../components/UI/GuardiasClose/Monitoreos/MonitOkGuard";
 import MonitProblemGuard from "../../../components/UI/GuardiasClose/Monitoreos/MonitoreosProblemGuard";
@@ -9,24 +10,19 @@ import ResumeGuard from "../../../components/UI/GuardiasClose/ResumeGuard";
 import TicketGuardiaEdit from "../../../components/UI/GuardiasClose/TicketsEditGuard";
 import useGuardiaCloseData from "../../../hooks/Guardia/getcloseGuard";
 import useGuardMonitData from "../../../hooks/Guardia/getMonitGuard";
-
-import emailjs from "@emailjs/browser";
 import { buildGuardiaCloseEmailHtml } from "../../../utils/emailCloseGuard";
 
 export default function EditGuardias() {
 	const navigate = useNavigate();
 	const ticketsRef = useRef(null);
+	const { id } = useParams();
 
-	// ✅ info guardia (GET /operaciones/guardias/close)
-	const { guardia } = useGuardiaCloseData();
+	const { guardia } = useGuardiaCloseData(id);
 
 	const [step, setStep] = useState(1);
-
-	// sub-vista dentro del paso 1
 	const [monitView, setMonitView] = useState("ok");
 	const [activeSite, setActiveSite] = useState("veeam");
 
-	// ✅ Hook monitoreos
 	const {
 		storeOk,
 		savingOkBySite,
@@ -34,43 +30,33 @@ export default function EditGuardias() {
 		closeProblems,
 		savingProblemsBySite,
 		saveProblemsErrorBySite,
-	} = useGuardMonitData(activeSite);
+	} = useGuardMonitData(activeSite, id);
 
-	// cache selección ok (IDs)
 	const [okSelectedBySite, setOkSelectedBySite] = useState({
 		veeam: new Set(),
 		site24: new Set(),
 	});
 
-	// ✅ NO seleccionados (NEW)
 	const [pendingNewBySite, setPendingNewBySite] = useState({
 		veeam: [],
 		site24: [],
 	});
 
-	// ✅ OK items listos
 	const [okItemsBySite, setOkItemsBySite] = useState({
 		veeam: [],
 		site24: [],
 	});
 
-	// ✅ filas para resumen (tabla)
 	const [pendingRowsBySite, setPendingRowsBySite] = useState({
 		veeam: [],
 		site24: [],
 	});
 
-	/**
-	 * ✅ PROBLEMS payloads por site:
-	 * - payloadDb => closeProblems
-	 * - payloadNew => storeOk
-	 */
 	const [problemsPayloadBySite, setProblemsPayloadBySite] = useState({
 		veeam: { payloadDb: null, payloadNew: null },
 		site24: { payloadDb: null, payloadNew: null },
 	});
 
-	// ✅ snapshot tickets para el resumen (solo UI)
 	const [ticketsResume, setTicketsResume] = useState({
 		pending: [],
 		concluded: [],
@@ -94,6 +80,7 @@ export default function EditGuardias() {
 	const isTicketsBusy = Boolean(ticketsRef.current?.isBusy?.());
 	const isMonitOkSaving = Boolean(savingOkBySite?.[activeSite]);
 	const isMonitProblemsSaving = Boolean(savingProblemsBySite?.[activeSite]);
+
 	const isBusy =
 		Boolean(submitting) ||
 		isTicketsBusy ||
@@ -111,7 +98,11 @@ export default function EditGuardias() {
 		setSubmitError(null);
 
 		const check = ticketsRef.current?.validateBeforeContinue?.();
-		if (check?.ok === false) return;
+
+		if (check?.ok === false) {
+			setSubmitError(check.message || "No se puede continuar.");
+			return;
+		}
 
 		const snap = ticketsRef.current?.getTicketsSnapshot?.();
 
@@ -127,9 +118,6 @@ export default function EditGuardias() {
 		setStep(3);
 	}, []);
 
-	/**
-	 * ✅ MonitOk -> Continuar
-	 */
 	const handleMonitContinue = useCallback(
 		({ site, selectedIds, pendingNewItems, hasPending, okItems }) => {
 			setActiveSite(site);
@@ -164,22 +152,16 @@ export default function EditGuardias() {
 		setMonitView("ok");
 	}, []);
 
-	/**
-	 * ✅ MonitProblemGuard -> Saved
-	 * AHORA manda: onSaved(active, { payloadDb, payloadNew, mergedItems, rowsForResume })
-	 */
 	const handleProblemsSaved = useCallback((site, pack) => {
 		const siteKey =
 			site || pack?.payloadDb?.site || pack?.payloadNew?.site || pack?.site;
 
 		if (siteKey) {
-			// ✅ resumen
 			setPendingRowsBySite((prev) => ({
 				...prev,
 				[siteKey]: Array.isArray(pack?.rowsForResume) ? pack.rowsForResume : [],
 			}));
 
-			// ✅ payloads
 			setProblemsPayloadBySite((prev) => ({
 				...prev,
 				[siteKey]: {
@@ -199,9 +181,6 @@ export default function EditGuardias() {
 		setStep(2);
 	}, []);
 
-	// =========================
-	// ✅ build rows para storeOk (OK)
-	// =========================
 	const buildOkRows = useCallback((site, okItems = []) => {
 		const arr = Array.isArray(okItems) ? okItems : [];
 
@@ -217,9 +196,6 @@ export default function EditGuardias() {
 			.filter((r) => Number.isFinite(r.client_id) && r.client_id > 0);
 	}, []);
 
-	// =========================
-	// ✅ ENVIAR CORREO (EmailJS) - FIX tickets
-	// =========================
 	const sendCloseEmail = useCallback(
 		async (ticketsSnap) => {
 			const SERVICE_ID = "service_azgc7ip";
@@ -233,8 +209,6 @@ export default function EditGuardias() {
 				concludedByUser: {},
 				counters: { total: 0, pending: 0, concluded: 0, newTickets: 0 },
 			};
-
-			console.log("📩 Email ticketsSnap:", safeSnap);
 
 			const html_body = buildGuardiaCloseEmailHtml({
 				guardia,
@@ -259,7 +233,7 @@ export default function EditGuardias() {
 						subject,
 						guardia_id: String(guardia?.id ?? ""),
 						user_name: String(guardia?.user?.name ?? guardia?.user_name ?? ""),
-						html_body, // ⚠️ en EmailJS pon {{{html_body}}}
+						html_body,
 					},
 					PUBLIC_KEY,
 				);
@@ -276,9 +250,6 @@ export default function EditGuardias() {
 		[guardia, okItemsBySite.veeam, pendingRowsBySite.veeam],
 	);
 
-	// =========================
-	// ✅ guardar (Paso 3) => problems + ok + tickets+close + email
-	// =========================
 	const handleCloseAll = useCallback(async () => {
 		if (!ticketsRef.current?.submitClose) return;
 
@@ -286,10 +257,8 @@ export default function EditGuardias() {
 		setSubmitError(null);
 
 		try {
-			// ✅ SOLO VEEAM por ahora
 			const site = "veeam";
 
-			// 1) PROBLEMS
 			const pack = problemsPayloadBySite?.[site] ?? {};
 			const payloadNew = pack?.payloadNew;
 			const payloadDb = pack?.payloadDb;
@@ -327,7 +296,6 @@ export default function EditGuardias() {
 				}
 			}
 
-			// 2) OK seleccionados => store
 			const okItems = okItemsBySite?.[site] ?? [];
 			if (okItems.length > 0) {
 				const okRows = buildOkRows(site, okItems);
@@ -345,11 +313,9 @@ export default function EditGuardias() {
 				}
 			}
 
-			// 3) Tickets + cerrar guardia
 			const res = await ticketsRef.current.submitClose();
 
 			if (res?.ok) {
-				// ✅ snapshot real al momento de cerrar
 				const liveSnap = ticketsRef.current?.getTicketsSnapshot?.() ?? null;
 
 				const mail = await sendCloseEmail(liveSnap);
@@ -394,16 +360,11 @@ export default function EditGuardias() {
 				<ExitConfirm to="/operaciones/guardias" />
 			</header>
 
-			{submitError ? (
-				<div className="mb-4 p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm">
-					{submitError}
-				</div>
-			) : null}
-
 			{/* PASO 1 */}
 			<div className={step === 1 ? "block" : "hidden"}>
 				<div className={monitView === "ok" ? "block" : "hidden"}>
 					<MonitOkGuard
+						guardiaId={id}
 						defaultSite={activeSite}
 						defaultSelectedBySite={okSelectedBySite}
 						onContinue={handleMonitContinue}
@@ -453,7 +414,12 @@ export default function EditGuardias() {
 				/>
 			</div>
 
-			{/* FOOTER */}
+			{submitError ? (
+				<div className="mt-4 p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm">
+					{submitError}
+				</div>
+			) : null}
+
 			<div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<div>
 					{step > 1 ? (

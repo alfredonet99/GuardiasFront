@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import ExitConfirm from "../../../components/UI/ConfirmBtn/ExitConfirm";
-import { privateInstance } from "../../../api/axios";
-
-import useFlashMessage from "../../../hooks/Errors/ErrorMessage";
-import FlashMessage from "../../../components/UI/Errors/ErrorsGlobal";
-
 import DatePicker, { registerLocale } from "react-datepicker";
+import { useNavigate, useParams } from "react-router-dom";
+import { privateInstance } from "../../../api/axios";
+import ExitConfirm from "../../../components/UI/ConfirmBtn/ExitConfirm";
+import FlashMessage from "../../../components/UI/Errors/ErrorsGlobal";
+import useFlashMessage from "../../../hooks/Errors/ErrorMessage";
 import "react-datepicker/dist/react-datepicker.css";
 import es from "date-fns/locale/es";
 

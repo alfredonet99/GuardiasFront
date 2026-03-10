@@ -16,7 +16,6 @@ export default function CreateTicket() {
 	const navigate = useNavigate();
 	const { message, showMessage, clearMessage } = useFlashMessage();
 
-	// ✅ callbacks estables (evita 429)
 	const onFlash = useCallback(
 		(text, type = "error") => showMessage(text, type),
 		[showMessage],
@@ -32,7 +31,6 @@ export default function CreateTicket() {
 		addTicket,
 		removeTicket,
 		updateTicket,
-		getAssigneesFiltered,
 
 		canAddTicket,
 		lastTicketValidation,
@@ -89,7 +87,6 @@ export default function CreateTicket() {
 				) : (
 					<>
 						{tickets.map((t, idx) => {
-							const assigneesFiltered = getAssigneesFiltered(t.creatorUserId);
 							const opened = accordion.isOpen(t.id);
 
 							return (
@@ -162,10 +159,6 @@ export default function CreateTicket() {
 														onChange={(v) =>
 															updateTicket(t.id, {
 																creatorUserId: v,
-																assignedUserId:
-																	String(v) === String(t.assignedUserId)
-																		? ""
-																		: t.assignedUserId,
 															})
 														}
 														users={usersAssignees}
@@ -229,21 +222,6 @@ export default function CreateTicket() {
 												required
 												maxWords={1000}
 											/>
-
-											<UserSelect
-												id={`assigned_user_id_${t.id}`}
-												name={`tickets[${idx}][assigned_user_id]`}
-												label="Usuario Asignado"
-												value={t.assignedUserId}
-												onChange={(v) =>
-													updateTicket(t.id, { assignedUserId: v })
-												}
-												users={assigneesFiltered}
-												loading={false}
-												error={null}
-												required
-												placeholder="Selecciona un usuario"
-											/>
 										</div>
 									)}
 								</div>
@@ -283,7 +261,6 @@ export default function CreateTicket() {
 					</>
 				)}
 
-				{/* ✅ FLASH SIEMPRE ABAJO */}
 				<FlashMessage message={message} />
 			</section>
 		</div>

@@ -1,11 +1,10 @@
-import { privateInstance } from "../../../api/axios";
-import SearchInputLong from "../../../components/UI/Search/SearchLong";
 import {
 	IconCreate,
 	IconDelete,
 	IconEdit,
 	IconShow,
 } from "../../../components/icons/Crud/exportCrud";
+import SearchInputLong from "../../../components/UI/Search/SearchLong";
 export default function ListMonitAA() {
 	return (
 		<div className="min-h-screen w-full bg-slate-100 dark:bg-slate-950 px-6 py-6 text-slate-800 dark:text-slate-200">

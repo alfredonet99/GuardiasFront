@@ -1,17 +1,16 @@
 // pages/Comunicaciones/MonitAA/CreateMonitAA.jsx
-import ExitConfirm from "../../../components/UI/ConfirmBtn/ExitConfirm";
+
 import DatePicker, { registerLocale } from "react-datepicker";
+import ExitConfirm from "../../../components/UI/ConfirmBtn/ExitConfirm";
 import "react-datepicker/dist/react-datepicker.css";
 import es from "date-fns/locale/es";
 
 import { useNavigate } from "react-router-dom";
-import RedesForm from "../../../hooks/MonitRedes/RedesForm";
-
-import useFlashMessage from "../../../hooks/Errors/ErrorMessage";
 import FlashMessage from "../../../components/UI/Errors/ErrorsGlobal";
-
-import WordCountTextarea from "../../../components/UI/WordCount/TextAreaCount";
 import WordCountInput from "../../../components/UI/WordCount/InputCount";
+import WordCountTextarea from "../../../components/UI/WordCount/TextAreaCount";
+import useFlashMessage from "../../../hooks/Errors/ErrorMessage";
+import RedesForm from "../../../hooks/MonitRedes/RedesForm";
 
 registerLocale("es", es);
 

@@ -1,6 +1,7 @@
 // components/UI/GuardiasClose/Monitoreos/MonitProblemGuard.jsx
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { privateInstance } from "../../../../api/axios";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
+import useGuardMonitData from "../../../../hooks/Guardia/getMonitGuard";
 import BackBtnSection from "../../../icons/BtnBackSection";
 import TableLoadingMessage from "../../Loaders/TableLoader";
 import TableStateMessage from "../../Loaders/TableStateMessage";
@@ -13,14 +14,12 @@ function normalizeDateRest(v) {
 	return String(v).slice(0, 10);
 }
 
-// ✅ parse robusto para "2026-02-16 10:00:00" o ISO
 function toMsSafe(dateLike) {
 	if (!dateLike) return null;
 
 	const raw = String(dateLike).trim();
 	if (!raw) return null;
 
-	// si viene "YYYY-MM-DD HH:mm:ss" => lo hacemos ISO "YYYY-MM-DDTHH:mm:ss"
 	const isoish =
 		raw.includes(" ") && !raw.includes("T") ? raw.replace(" ", "T") : raw;
 
@@ -55,7 +54,7 @@ function normalizeClientItemFromDb(row, site) {
 		backup: row?.client_backup ?? row?.backup,
 		jobs: row?.client_jobs ?? row?.jobs,
 
-		monitoreo_id: row?.monitoreo_id ?? row?.id_monitoreo ?? null,
+		monitoreo_id: row?.monitoreo_id ?? row?.id_monitoreo ?? row?.id ?? null,
 		dateRest: normalizeDateRest(row?.dateRest),
 
 		estatus: String(row?.estatus ?? ""),
@@ -66,7 +65,6 @@ function normalizeClientItemFromDb(row, site) {
 		veeam_id: row?.veeam_id ?? row?.siteApp ?? null,
 		veeam_name: row?.veeam_name ?? row?.siteApp_name ?? null,
 
-		// ✅ para regla +7 días
 		created_at: row?.created_at ?? row?.createdAt ?? null,
 
 		site,
@@ -87,97 +85,41 @@ export default function MonitProblemGuard({
 	onBack,
 	onSaved,
 }) {
-	void site;
+	const { id } = useParams();
 
 	const tabs = useMemo(() => [{ key: "veeam", label: "VEEAM" }], []);
-
 	const [active, setActive] = useState(site || "veeam");
 
 	useEffect(() => {
 		setActive("veeam");
 	}, []);
 
-	const [dbPendingBySite, setDbPendingBySite] = useState(() => ({
-		veeam: [],
-	}));
-	const [statusBySite, setStatusBySite] = useState(() => ({
-		veeam: {},
-	}));
+	const {
+		pendingBySite,
+		loadingPendingBySite,
+		errorPendingBySite,
+		attemptedPendingBySite,
+		fetchPendingSite,
+		statusBySite,
+	} = useGuardMonitData(active, id);
 
-	const [loadingDbBySite, setLoadingDbBySite] = useState(() => ({
-		veeam: false,
-	}));
-	const [errorDbBySite, setErrorDbBySite] = useState(() => ({
-		veeam: null,
-	}));
-	const [attemptedDbBySite, setAttemptedDbBySite] = useState(() => ({
-		veeam: false,
-	}));
-
-	const attemptedRef = useRef(attemptedDbBySite);
-	useEffect(() => {
-		attemptedRef.current = attemptedDbBySite;
-	}, [attemptedDbBySite]);
-
-	const getDbUrl = useCallback((s) => {
-		if (s === "veeam") return "/operaciones/monitoreos/pendientes/veeam";
-		return "";
-	}, []);
-
-	const fetchDbPending = useCallback(
-		async (s, { force = false } = {}) => {
-			if (!s) return;
-			if (s !== "veeam") return;
-			if (!force && attemptedRef.current?.[s]) return;
-
-			const url = getDbUrl(s);
-			if (!url) {
-				setAttemptedDbBySite((p) => ({ ...p, [s]: true }));
-				return;
-			}
-
-			setLoadingDbBySite((p) => ({ ...p, [s]: true }));
-			setErrorDbBySite((p) => ({ ...p, [s]: null }));
-
-			try {
-				const res = await privateInstance.get(url);
-
-				const raw = Array.isArray(res.data?.items)
-					? res.data.items
-					: Array.isArray(res.data?.data)
-						? res.data.data
-						: [];
-
-				const status =
-					res.data?.status && typeof res.data.status === "object"
-						? res.data.status
-						: {};
-
-				const normalized = raw.map((r) => normalizeClientItemFromDb(r, s));
-
-				setDbPendingBySite((p) => ({ ...p, [s]: normalized }));
-				setStatusBySite((p) => ({ ...p, [s]: status }));
-			} catch (e) {
-				const msg =
-					e?.response?.data?.message ||
-					e?.message ||
-					"Error cargando pendientes BD.";
-				setErrorDbBySite((p) => ({ ...p, [s]: msg }));
-			} finally {
-				setAttemptedDbBySite((p) => ({ ...p, [s]: true }));
-				setLoadingDbBySite((p) => ({ ...p, [s]: false }));
-			}
-		},
-		[getDbUrl],
+	const dbPendingRaw = pendingBySite?.[active] ?? [];
+	const dbPending = useMemo(
+		() => dbPendingRaw.map((r) => normalizeClientItemFromDb(r, active)),
+		[dbPendingRaw, active],
 	);
+
+	const loading = Boolean(loadingPendingBySite?.[active]);
+	const error = errorPendingBySite?.[active] ?? null;
+	const attempted = Boolean(attemptedPendingBySite?.[active]);
 
 	useEffect(() => {
 		if (!active) return;
-		fetchDbPending(active);
-	}, [active, fetchDbPending]);
+		if (attempted) return;
+		fetchPendingSite(active);
+	}, [active, attempted, fetchPendingSite]);
 
 	const newPending = pendingItemsBySite?.[active] ?? [];
-	const dbPending = dbPendingBySite?.[active] ?? [];
 
 	const mergedItems = useMemo(() => {
 		const map = new Map();
@@ -203,17 +145,12 @@ export default function MonitProblemGuard({
 		return Array.from(map.values());
 	}, [dbPending, newPending]);
 
-	const loading = Boolean(loadingDbBySite?.[active]);
-	const error = errorDbBySite?.[active] ?? null;
-	const attempted = Boolean(attemptedDbBySite?.[active]);
-
 	const [problemFormBySite, setProblemFormBySite] = useState(() => ({
 		veeam: {},
 	}));
 
 	const problemForm = problemFormBySite?.[active] ?? {};
 
-	// ✅ snapshot inicial (para comparar cambios en items DB)
 	const [initialSnapshotBySite, setInitialSnapshotBySite] = useState(() => ({
 		veeam: {},
 	}));
@@ -223,7 +160,6 @@ export default function MonitProblemGuard({
 	useEffect(() => {
 		if (!attempted || loading || error) return;
 
-		// 1) precarga form (como ya lo tienes)
 		setProblemFormBySite((prev) => {
 			const nextSiteForm = { ...(prev?.[active] ?? {}) };
 			let changed = false;
@@ -249,7 +185,6 @@ export default function MonitProblemGuard({
 			return { ...prev, [active]: nextSiteForm };
 		});
 
-		// 2) snapshot inicial SOLO para items DB (no lo sobre-escribimos)
 		setInitialSnapshotBySite((prev) => {
 			const cur = { ...(prev?.[active] ?? {}) };
 			let changed = false;
@@ -358,7 +293,6 @@ export default function MonitProblemGuard({
 			if (!item || item._source !== "db") return;
 
 			setFormError("");
-			// ✅ tu botón de concluir hoy hace esto
 			handleProblemChange(clientId, { estatus: "1" });
 		},
 		[mergedItems, handleProblemChange],
@@ -370,10 +304,10 @@ export default function MonitProblemGuard({
 		if (c?._source === "new") chips.push({ label: "Origen", value: "Nuevo" });
 		if (c?.veeam_name) chips.push({ label: "Veeam", value: c.veeam_name });
 		if (f?.estatus) chips.push({ label: "Estatus", value: f.estatus });
-		if (f?.last_restore_date)
+		if (f?.last_restore_date) {
 			chips.push({ label: "Restauración", value: f.last_restore_date });
+		}
 
-		// ✅ opcional: mostrar antigüedad si existe created_at
 		const days = ageDaysFromCreatedAt(c?.created_at);
 		if (Number.isFinite(days) && days !== null) {
 			chips.push({ label: "Antigüedad", value: `${days} día(s)` });
@@ -439,16 +373,12 @@ export default function MonitProblemGuard({
 		return { site: active, rows };
 	}, [mergedItems, problemForm, active]);
 
-	// ✅ helper: para los DB >7 días, obligar AL MENOS 1 acción:
-	// - cambiar estatus vs inicial
-	// - cambiar observación vs inicial
-	// - o concluir (estatus === "1" según tu botón)
 	const requiresActionForItem = useCallback((item) => {
 		if (!item) return false;
 		if (item?._source !== "db") return false;
 
 		const days = ageDaysFromCreatedAt(item?.created_at);
-		if (days === null) return false; // si no hay created_at, no forzamos (evita falsos bloqueos)
+		if (days === null) return false;
 		return days > FORCE_CHANGE_AFTER_DAYS;
 	}, []);
 
@@ -475,7 +405,6 @@ export default function MonitProblemGuard({
 			const obsChanged =
 				curObs.length > 0 && String(curObs) !== String(initObs);
 
-			// ✅ "concluir" según tu UI actual (botón => estatus "1")
 			const concluded = curStatus === "1";
 
 			return statusChanged || obsChanged || concluded;
@@ -488,7 +417,6 @@ export default function MonitProblemGuard({
 
 		const allRows = [...(payloadDb?.rows ?? []), ...(payloadNew?.rows ?? [])];
 
-		// ✅ tu validación original (no pasa si faltan campos)
 		const invalid = allRows.find((r) => {
 			const estatusOk = String(r.estatus ?? "").trim().length > 0;
 			const observacionOk = String(r.observacion ?? "").trim().length > 0;
@@ -507,14 +435,12 @@ export default function MonitProblemGuard({
 			return;
 		}
 
-		// ✅ NUEVA REGLA: DB con más de 7 días => obligar 1 acción (estatus u observación o concluir)
 		const mustAct = (mergedItems ?? []).filter((it) =>
 			requiresActionForItem(it),
 		);
 		const notActed = mustAct.filter((it) => !didUserDoOneAction(it));
 
 		if (notActed.length > 0) {
-			// mensaje con ejemplo
 			const first = notActed[0];
 			const label =
 				String(first?.label ?? "").trim() ||

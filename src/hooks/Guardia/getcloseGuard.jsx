@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { privateInstance } from "../../api/axios";
 
-export default function useGuardiaCloseData() {
+export default function useGuardiaCloseData(guardiaIdParam = null) {
 	const [booting, setBooting] = useState(true);
 	const [guardia, setGuardia] = useState(null);
 	const [tickets, setTickets] = useState([]);
@@ -15,7 +15,7 @@ export default function useGuardiaCloseData() {
 	const [saving, setSaving] = useState(false);
 	const [saveError, setSaveError] = useState(null);
 
-	// ✅ creación (por si quieres usar createTicket aparte)
+	// ✅ creación manual/local
 	const [creating, setCreating] = useState(false);
 	const [createError, setCreateError] = useState(null);
 
@@ -27,7 +27,16 @@ export default function useGuardiaCloseData() {
 			setError(null);
 
 			try {
-				const res = await privateInstance.get("/operaciones/guardias/close");
+				const guardiaId = guardiaIdParam ? Number(guardiaIdParam) : null;
+
+				if (!guardiaId) {
+					throw new Error("No se recibió guardia_id para cargar el cierre.");
+				}
+
+				const res = await privateInstance.get(
+					`/operaciones/guardias/${guardiaId}/edit`,
+				);
+
 				if (!mounted) return;
 
 				setGuardia(res.data?.guardia ?? null);
@@ -35,7 +44,7 @@ export default function useGuardiaCloseData() {
 				const rows = Array.isArray(res.data?.tickets) ? res.data.tickets : [];
 				setTickets(rows);
 
-				// ✅ guardar descripción original por ID (solo BD)
+				// ✅ snapshot descripción original
 				const snap = {};
 				for (const t of rows) {
 					if (t?.id) {
@@ -69,7 +78,7 @@ export default function useGuardiaCloseData() {
 		return () => {
 			mounted = false;
 		};
-	}, []);
+	}, [guardiaIdParam]);
 
 	/** ✅ update en memoria (por local_id o id) */
 	const updateTicketLocal = useCallback((localIdOrId, patch) => {
@@ -85,51 +94,61 @@ export default function useGuardiaCloseData() {
 		);
 	}, []);
 
-	/** ✅ Crear ticket (usa TU store) - opcional */
-	const createTicket = useCallback(async (form) => {
-		setCreating(true);
-		setCreateError(null);
+	/** ✅ Crear un ticket dentro del contexto de guardia */
+	const createTicket = useCallback(
+		async (form) => {
+			setCreating(true);
+			setCreateError(null);
 
-		try {
-			const payload = {
-				numTicket: form?.numTicket ? Number(form.numTicket) : null,
-				numTicketNoct: form?.numTicketNoct ? Number(form.numTicketNoct) : null,
-				assigned_user_id: form?.assigned_user_id
-					? Number(form.assigned_user_id)
-					: null,
-				titleTicket: String(form?.titleTicket ?? ""),
-				descriptionTicket: String(form?.descriptionTicket ?? ""),
-				...(form?.creator_user_id
-					? { creator_user_id: Number(form.creator_user_id) }
-					: {}),
-			};
+			try {
+				const guardiaId = guardia?.id ? Number(guardia.id) : null;
 
-			const res = await privateInstance.post(
-				"/operaciones/tickets/crear",
-				payload,
-			);
-			const newTicket = res.data?.ticket;
+				if (!guardiaId) {
+					throw new Error(
+						"No se encontró la guardia activa para crear el ticket.",
+					);
+				}
 
-			if (newTicket?.id) {
-				setTickets((prev) => [{ ...newTicket }, ...(prev ?? [])]);
+				const payload = {
+					numTicket: form?.numTicket ? Number(form.numTicket) : null,
+					numTicketNoct: form?.numTicketNoct
+						? Number(form.numTicketNoct)
+						: null,
+					titleTicket: String(form?.titleTicket ?? ""),
+					descriptionTicket: String(form?.descriptionTicket ?? ""),
+				};
+
+				const res = await privateInstance.post(
+					`/operaciones/guardias/tickets/${guardiaId}`,
+					payload,
+				);
+
+				const newTicket =
+					res.data?.ticket ||
+					(Array.isArray(res.data?.tickets) ? res.data.tickets[0] : null);
+
+				if (newTicket?.id) {
+					setTickets((prev) => [{ ...newTicket }, ...(prev ?? [])]);
+				}
+
+				return { ok: true, ticket: newTicket ?? null, data: res.data };
+			} catch (e) {
+				const msg =
+					e?.response?.data?.message || e?.message || "Error al crear ticket";
+				setCreateError(msg);
+				return { ok: false, message: msg };
+			} finally {
+				setCreating(false);
 			}
-
-			return { ok: true, ticket: newTicket ?? null, data: res.data };
-		} catch (e) {
-			const msg =
-				e?.response?.data?.message || e?.message || "Error al crear ticket";
-			setCreateError(msg);
-			return { ok: false, message: msg };
-		} finally {
-			setCreating(false);
-		}
-	}, []);
+		},
+		[guardia],
+	);
 
 	/**
 	 * ✅ Guardar TODO en un botón:
-	 * 1) crea tickets nuevos (local_id)
-	 * 2) PATCH masivo (tickets con id)
-	 * 3) cierra guardia SIEMPRE
+	 * 1) crea tickets nuevos (local_id)  -> endpoint guardia
+	 * 2) PATCH masivo (tickets con id)   -> manda guardia_id
+	 * 3) cierra guardia SIEMPRE          -> manda guardia_id
 	 */
 	const closeGuardia = useCallback(async () => {
 		setSaving(true);
@@ -137,20 +156,22 @@ export default function useGuardiaCloseData() {
 
 		try {
 			const all = tickets ?? [];
+			const guardiaId = guardia?.id ? Number(guardia.id) : null;
+
+			if (!guardiaId) {
+				throw new Error("No se encontró la guardia activa para procesar.");
+			}
 
 			// 1) separar locales
 			const toCreate = all.filter((t) => !t?.id && !!t?.local_id);
 
-			// 2) crear nuevos
-			const createdMap = []; // [{ local_id, ticket }]
+			// 2) crear nuevos dentro del contexto de guardia
+			const createdMap = [];
 			if (toCreate.length) {
 				for (const t of toCreate) {
 					const payload = {
 						numTicket: t?.numTicket ? Number(t.numTicket) : null,
 						numTicketNoct: t?.numTicketNoct ? Number(t.numTicketNoct) : null,
-						assigned_user_id: t?.assigned_user_id
-							? Number(t.assigned_user_id)
-							: null,
 						titleTicket: String(t?.titleTicket ?? ""),
 						descriptionTicket: String(
 							t?.descriptionTicket ?? t?.description ?? "",
@@ -158,14 +179,22 @@ export default function useGuardiaCloseData() {
 					};
 
 					const res = await privateInstance.post(
-						"/operaciones/tickets/crear",
+						`/operaciones/guardias/tickets/${guardiaId}`,
 						payload,
 					);
 
-					const newTicket = res.data?.ticket;
-					if (!newTicket?.id) throw new Error("Store no devolvió ticket.id");
+					const newTicket =
+						res.data?.ticket ||
+						(Array.isArray(res.data?.tickets) ? res.data.tickets[0] : null);
 
-					createdMap.push({ local_id: String(t.local_id), ticket: newTicket });
+					if (!newTicket?.id) {
+						throw new Error("storeTicketFromGuardia no devolvió ticket.id");
+					}
+
+					createdMap.push({
+						local_id: String(t.local_id),
+						ticket: newTicket,
+					});
 				}
 			}
 
@@ -176,10 +205,11 @@ export default function useGuardiaCloseData() {
 				const hit = createdMap.find(
 					(x) => String(x.local_id) === String(t?.local_id),
 				);
+
 				return hit ? hit.ticket : t;
 			});
 
-			// 4) PATCH MASIVO (⚠️ solo tickets que YA tenían id desde el GET)
+			// 4) PATCH MASIVO solo tickets existentes
 			const patchTickets = (all ?? [])
 				.filter((t) => !!t?.id)
 				.map((t) => ({
@@ -191,21 +221,21 @@ export default function useGuardiaCloseData() {
 						t?.descriptionTicket ?? t?.description ?? "",
 					),
 					status: Number(t?.status ?? 1),
-					assigned_user_id: t?.assigned_user_id
-						? Number(t.assigned_user_id)
-						: null,
 				}));
 
 			if (patchTickets.length) {
 				await privateInstance.patch("/operaciones/tickets/update-tickets", {
+					guardia_id: guardiaId,
 					tickets: patchTickets,
 				});
 			}
 
-			// 5) CERRAR GUARDIA SIEMPRE
+			// 5) CERRAR GUARDIA
 			const resClose = await privateInstance.post(
 				"/operaciones/guardias/close/data",
-				{},
+				{
+					guardia_id: guardiaId,
+				},
 			);
 
 			// 6) refrescar state
@@ -238,7 +268,7 @@ export default function useGuardiaCloseData() {
 		} finally {
 			setSaving(false);
 		}
-	}, [tickets]);
+	}, [tickets, guardia]);
 
 	useEffect(() => {
 		console.log("[useGuardiaCloseData] guardia =>", guardia);
@@ -264,7 +294,6 @@ export default function useGuardiaCloseData() {
 		createError,
 		createTicket,
 
-		// ✅ NUEVO
 		originalDescById,
 	};
 }

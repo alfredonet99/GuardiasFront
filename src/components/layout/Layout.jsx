@@ -19,6 +19,7 @@ import SessionExpiredModal from "../Modals/Sesion/FinishSesion";
 import PageHeader from "./PageHeader";
 import Profile from "./profile";
 import RoutePageTitleManager from "./RouteLayout";
+import RouteTitleUpdater from "./RouteTitle";
 import ComunicacionesAdminWrapper from "./WrapperComunicaciones/ComunicacionesWrapper";
 import OperacionesAdminWrapper from "./WrapperOperaciones/OpereacionesWrapper";
 
@@ -154,6 +155,7 @@ export default function MainLayout() {
 			</aside>
 
 			<PageTitleProvider>
+				<RouteTitleUpdater></RouteTitleUpdater>
 				<main className=" ml-16 p-4 transition-all duration-300 relative">
 					<div
 						className="fixed top-0 left-16 right-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700

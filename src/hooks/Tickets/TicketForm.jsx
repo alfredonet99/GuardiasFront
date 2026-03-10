@@ -17,7 +17,6 @@ function makeEmptyTicket({ authIsAdmin, authUserId, authUserName }) {
 		description: "",
 		creatorUserId: authIsAdmin ? "" : String(authUserId || ""),
 		creatorUserName: authIsAdmin ? "" : String(authUserName || ""),
-		assignedUserId: "",
 	};
 }
 
@@ -30,22 +29,22 @@ function translateLaravelMsg(msg, fieldKey = "") {
 	const m = String(msg ?? "").trim();
 	if (!m) return m;
 
-	// numTicket duplicado (típico)
 	if (/has already been taken/i.test(m)) {
-		// si trae "The num ticket..." o similar
 		if (/num\s*ticket/i.test(m) || fieldKey === "numTicket") {
 			return "El número de ticket ya existe. Captura uno diferente.";
 		}
 		return "Este valor ya existe. Captura uno diferente.";
 	}
 
-	// otros comunes (por si te sirven)
-	if (/The .* field is required\./i.test(m))
+	if (/The .* field is required\./i.test(m)) {
 		return "Este campo es obligatorio.";
-	if (/must be an integer/i.test(m))
-		return "Este campo debe ser un número entero.";
+	}
 
-	return m; // fallback: lo deja igual
+	if (/must be an integer/i.test(m)) {
+		return "Este campo debe ser un número entero.";
+	}
+
+	return m;
 }
 
 // ✅ helper: normaliza error 422 (Laravel)
@@ -83,9 +82,7 @@ export default function useTicketsForm({
 	const [authUserName, setAuthUserName] = useState("");
 
 	const [tickets, setTickets] = useState([]);
-
 	const [addTicketError, setAddTicketError] = useState(null);
-
 	const [saving, setSaving] = useState(false);
 
 	const fireFlash = useCallback(
@@ -136,7 +133,7 @@ export default function useTicketsForm({
 				const msg =
 					e?.response?.data?.message ||
 					e?.message ||
-					"Error al cargar usuarios para asignación";
+					"Error al cargar usuarios";
 
 				fireFlash(msg, "error");
 
@@ -158,34 +155,19 @@ export default function useTicketsForm({
 		};
 
 		boot();
+
 		return () => {
 			mounted = false;
 		};
 	}, [fireFlash, clearFlash]);
 
-	const getAssigneesFiltered = useCallback(
-		(creatorId) => {
-			if (!creatorId) return usersAssignees;
-			return usersAssignees.filter((u) => String(u.id) !== String(creatorId));
-		},
-		[usersAssignees],
-	);
-
 	const validateTicket = useCallback((t) => {
 		const missing = [];
+
 		if (!isFilled(t.numTicket)) missing.push("Número de Ticket");
 		if (!isFilled(t.titleTicket)) missing.push("Título");
 		if (!isFilled(t.description)) missing.push("Descripción");
 		if (!isFilled(t.creatorUserId)) missing.push("Usuario Creador");
-		if (!isFilled(t.assignedUserId)) missing.push("Usuario Asignado");
-
-		if (
-			isFilled(t.creatorUserId) &&
-			isFilled(t.assignedUserId) &&
-			String(t.creatorUserId) === String(t.assignedUserId)
-		) {
-			missing.push("El Asignado debe ser diferente al Creador");
-		}
 
 		return { ok: missing.length === 0, missing };
 	}, []);
@@ -241,40 +223,19 @@ export default function useTicketsForm({
 		setAddTicketError(null);
 	}, []);
 
-	// ✅ limpiar asignado si ya no aplica
-	useEffect(() => {
-		if (!tickets.length) return;
-
-		setTickets((prev) =>
-			prev.map((t) => {
-				if (!t.assignedUserId) return t;
-
-				const validList = getAssigneesFiltered(t.creatorUserId);
-				const stillExists = validList.some(
-					(u) => String(u.id) === String(t.assignedUserId),
-				);
-				const sameAsCreator =
-					t.creatorUserId &&
-					String(t.creatorUserId) === String(t.assignedUserId);
-
-				return stillExists && !sameAsCreator ? t : { ...t, assignedUserId: "" };
-			}),
-		);
-	}, [getAssigneesFiltered, tickets.length]);
-
 	const buildPayload = useCallback(
 		(t) => {
 			const payload = {
 				numTicket: Number(t.numTicket),
 				numTicketNoct: t.numTicketNoct ? Number(t.numTicketNoct) : null,
-				assigned_user_id: Number(t.assignedUserId),
 				titleTicket: String(t.titleTicket ?? ""),
 				descriptionTicket: String(t.description ?? ""),
 			};
 
-			// solo admin manda creator_user_id
-			if (authIsAdmin && t.creatorUserId)
+			// ✅ solo admin puede decidir quién crea el ticket
+			if (authIsAdmin && t.creatorUserId) {
 				payload.creator_user_id = Number(t.creatorUserId);
+			}
 
 			return payload;
 		},
@@ -283,10 +244,12 @@ export default function useTicketsForm({
 
 	// ✅ valida duplicados locales (numTicket debe ser único)
 	const validateLocalDuplicateNumTicket = useCallback(() => {
-		const map = new Map(); // numTicket -> [localIds]
+		const map = new Map();
+
 		for (const t of tickets) {
 			const n = String(t?.numTicket ?? "").trim();
 			if (!n) continue;
+
 			if (!map.has(n)) map.set(n, []);
 			map.get(n).push(t.id);
 		}
@@ -308,7 +271,6 @@ export default function useTicketsForm({
 		setSaving(true);
 		clearFlash();
 
-		// 1) validación normal
 		const validations = tickets.map((t) => ({
 			id: t.id,
 			...validateTicket(t),
@@ -324,7 +286,6 @@ export default function useTicketsForm({
 			return { ok: false };
 		}
 
-		// 2) duplicados locales
 		const dupLocal = validateLocalDuplicateNumTicket();
 		if (!dupLocal.ok) {
 			fireFlash(dupLocal.message, "error");
@@ -333,6 +294,7 @@ export default function useTicketsForm({
 		}
 
 		const results = [];
+
 		for (const t of tickets) {
 			try {
 				const payload = buildPayload(t);
@@ -350,13 +312,12 @@ export default function useTicketsForm({
 			} catch (e) {
 				const v = extractLaravelValidationMessage(e);
 
-				// ✅ si es 422, traducimos el mensaje y lo mandamos al FLASH
 				if (v?.status === 422) {
 					if (v?.errors?.numTicket?.length) {
 						const raw = String(v.errors.numTicket[0] ?? v.message);
 						const baseMsg = translateLaravelMsg(raw, "numTicket");
 
-						const dupNum = String(t?.numTicket ?? "").trim(); // ✅ número capturado
+						const dupNum = String(t?.numTicket ?? "").trim();
 						const msg = dupNum
 							? `❌ Ticket duplicado: ${dupNum}. ${baseMsg}`
 							: `❌ ${baseMsg}`;
@@ -384,7 +345,6 @@ export default function useTicketsForm({
 		const okCount = results.filter((r) => r.ok).length;
 		const failCount = results.length - okCount;
 
-		// ✅ CAMBIO: si falla 1 o más, NO enviar nada al final
 		if (failCount === 0) {
 			fireFlash(
 				`✅ Se guardaron ${okCount} ticket(s) correctamente.`,
@@ -417,7 +377,6 @@ export default function useTicketsForm({
 		addTicket,
 		removeTicket,
 		updateTicket,
-		getAssigneesFiltered,
 
 		canAddTicket,
 		addTicketError,

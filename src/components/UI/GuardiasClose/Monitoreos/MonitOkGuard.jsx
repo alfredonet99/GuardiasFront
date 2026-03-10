@@ -8,7 +8,8 @@ import MonitOk from "../../Monitoreos/MonitOk";
 export default function MonitOkGuard({
 	onContinue,
 	defaultSite = "veeam",
-	defaultSelectedBySite = { veeam: new Set() }, // ✅ SOLO VEEAM
+	defaultSelectedBySite = { veeam: new Set() },
+	guardiaId, // ✅ SOLO VEEAM
 }) {
 	void defaultSite;
 
@@ -35,7 +36,7 @@ export default function MonitOkGuard({
 		loadingPendingBySite,
 		errorPendingBySite,
 		attemptedPendingBySite,
-	} = useGuardMonitData(active);
+	} = useGuardMonitData(active, guardiaId);
 
 	const [selectedBySite, setSelectedBySite] = useState(() => ({
 		veeam: defaultSelectedBySite?.veeam ?? new Set(),
