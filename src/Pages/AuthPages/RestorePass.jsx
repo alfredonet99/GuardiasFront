@@ -52,7 +52,7 @@ export default function RecoverPassword() {
 
 		if (cooldown > 0) {
 			setError(
-				"Ya hemos enviado una liga a tu correo <br> vuelve a intentarlo en 1 minuto.",
+				"Ya hemos enviado una liga a tu correo /n vuelve a intentarlo en 15 minutos.",
 			);
 			return;
 		}

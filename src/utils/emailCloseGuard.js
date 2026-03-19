@@ -42,7 +42,6 @@ function formatDateOnly(value) {
 	}
 }
 
-// labels (igual que los tuyos)
 const STATUS_VEEAM = {
 	1: "Completado Exitoso - Backup finalizado sin errores",
 	2: "Completado con Advertencias - Backup terminado pero con observaciones menores",
@@ -90,8 +89,8 @@ export function buildGuardiaCloseEmailHtml({
 	guardia,
 	now = new Date(),
 
-	okItemsVeeam = [], // selectedOkItemsVeeam
-	pendingVeeamRows = [], // rowsForResume
+	okItemsVeeam = [],
+	pendingVeeamRows = [],
 
 	ticketsResume = {
 		pending: [],
@@ -106,14 +105,13 @@ export function buildGuardiaCloseEmailHtml({
 
 	const groups = groupByVeeamName(okItemsVeeam);
 
-	// chips (3 columnas)
 	const groupsHtml = groups.length
 		? groups
 				.slice(0, 6)
 				.map(
 					(g) => `
-          <td class="stack stack-pad mt8" style="width:33.33%; padding:0 8px; vertical-align:top;">
-            <span style="display:block; background:#f6f7f9; padding:10px 12px; border-radius:10px; font-size:14px;">
+          <td class="stack stack-pad mt8 top w33 pad-x">
+            <span class="pill">
               <strong>${esc(g.name)}</strong> — ${esc(g.count)} OK
             </span>
           </td>
@@ -121,18 +119,16 @@ export function buildGuardiaCloseEmailHtml({
 				)
 				.join("")
 		: `
-      <td class="stack stack-pad" style="width:100%; padding:0; vertical-align:top;">
-        <span style="display:block; background:#f6f7f9; padding:10px 12px; border-radius:10px; font-size:14px;">
+      <td class="stack stack-pad top w100">
+        <span class="pill">
           Sin clientes OK por sección VEEAM
         </span>
       </td>
     `;
 
-	// tabla pendientes (si no hay, muestra mensaje)
 	const pendingRowsHtml = pendingVeeamRows.length
 		? pendingVeeamRows
-				.map((r, idx) => {
-					const idGuardia = r?.id_guardia ?? guardiaId ?? "—";
+				.map((r) => {
 					const cliente = clientDisplay(r);
 					const site = r?.veeam_name || r?.site || "—";
 					const backup = r?.backup ?? "—";
@@ -142,29 +138,28 @@ export function buildGuardiaCloseEmailHtml({
 
 					return `
             <tr>
-              <td style="padding:10px; border:1px solid #eef0f3; border-top:none; border-right:none; background:#ffffff;">${esc(idGuardia)}</td>
-              <td style="padding:10px; border:1px solid #eef0f3; border-top:none; border-right:none; background:#ffffff;">${esc(cliente)}</td>
-              <td style="padding:10px; border:1px solid #eef0f3; border-top:none; border-right:none; background:#ffffff;">${esc(site)}</td>
-              <td style="padding:10px; border:1px solid #eef0f3; border-top:none; border-right:none; background:#ffffff;">${esc(backup)}</td>
-              <td style="padding:10px; border:1px solid #eef0f3; border-top:none; border-right:none; background:#ffffff;">${esc(fRest)}</td>
-              <td style="padding:10px; border:1px solid #eef0f3; border-top:none; border-right:none; background:#ffffff;">${esc(est)}</td>
-              <td style="padding:10px; border:1px solid #eef0f3; border-top:none; background:#ffffff;">${esc(obs)}</td>
+              <td class="td">${esc(cliente)}</td>
+              <td class="td">${esc(site)}</td>
+              <td class="td">${esc(backup)}</td>
+              <td class="td">${esc(fRest)}</td>
+              <td class="td">${esc(est)}</td>
+              <td class="td td-last">${esc(obs)}</td>
             </tr>
           `;
 				})
 				.join("")
 		: `
       <tr>
-        <td colspan="7" style="padding:12px; border:1px solid #eef0f3; border-top:none; background:#ffffff;">
+        <td colspan="6" class="td-empty">
           Sin pendientes para mostrar.
         </td>
       </tr>
     `;
 
-	// tickets (pendientes) tabla
 	const tPending = Array.isArray(ticketsResume?.pending)
 		? ticketsResume.pending
 		: [];
+
 	const ticketsPendingRows = tPending.length
 		? tPending
 				.map((t) => {
@@ -172,94 +167,245 @@ export function buildGuardiaCloseEmailHtml({
 					const numB = String(t?.numTicketNoct ?? "").trim();
 					const num = numA && numB ? `${numA} / ${numB}` : numA || numB || "—";
 					const title = String(t?.titleTicket ?? t?.title ?? "").trim() || "—";
-					const assigned =
-						String(
-							t?.assigned_user_name ?? t?.assigned_name ?? t?.user_name ?? "",
-						).trim() || "—";
-					const status =
-						Number(t?.status ?? 1) === 2 ? "Concluido" : "Pendiente";
 
 					return `
             <tr>
-              <td style="padding:10px; border:1px solid #eef0f3; border-top:none; border-right:none; background:#ffffff;">${esc(num)}</td>
-              <td style="padding:10px; border:1px solid #eef0f3; border-top:none; border-right:none; background:#ffffff;">${esc(title)}</td>
-              <td style="padding:10px; border:1px solid #eef0f3; border-top:none; border-right:none; background:#ffffff;">${esc(assigned)}</td>
-              <td style="padding:10px; border:1px solid #eef0f3; border-top:none; background:#ffffff;">${esc(status)}</td>
+              <td class="td">${esc(num)}</td>
+              <td class="td td-last">${esc(title)}</td>
             </tr>
           `;
 				})
 				.join("")
 		: `
       <tr>
-        <td colspan="5" style="padding:12px; border:1px solid #eef0f3; border-top:none; background:#ffffff;">
+        <td colspan="2" class="td-empty">
           Sin tickets pendientes.
         </td>
       </tr>
     `;
 
-	// el HTML final (tu diseño base + secciones)
 	return `
-<div style="font-family: system-ui, sans-serif, Arial; font-size: 16px; color:#111;">
+<div class="mail-root">
   <style>
+    .mail-root {
+      font-family: system-ui, sans-serif, Arial;
+      font-size: 16px;
+      color: #111;
+    }
+
+    .title-wrap {
+      margin: 0 0 14px 0;
+      text-align: center;
+    }
+
+    .title-badge {
+      display: inline-block;
+      background-color: #ecf0f1;
+      color: #169179;
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+
+    .top-table,
+    .inner-table,
+    .groups-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0;
+    }
+
+    .summary-card {
+      display: block;
+      background: #f6f7f9;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    .section {
+      margin-top: 18px;
+    }
+
+    .section-title-wrap {
+      margin: 0 0 10px 0;
+      text-align: left;
+    }
+
+    .section-title {
+      display: inline-block;
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: .2px;
+    }
+
+    .box {
+      margin: 0;
+      padding: 14px;
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #eef0f3;
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .tbl {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 13px;
+    }
+
+    .tbl-veeam {
+      min-width: 980px;
+    }
+
+    .tbl-tickets {
+      min-width: 820px;
+    }
+
+    .th {
+      background: #f6f7f9;
+      padding: 10px;
+      border: 1px solid #eef0f3;
+      border-right: none;
+      text-align: left;
+    }
+
+    .th-left {
+      border-top-left-radius: 10px;
+    }
+
+    .th-right {
+      border-top-right-radius: 10px;
+      border-right: 1px solid #eef0f3;
+    }
+
+    .td {
+      padding: 10px;
+      border: 1px solid #eef0f3;
+      border-top: none;
+      border-right: none;
+      background: #ffffff;
+    }
+
+    .td-last {
+      border-right: 1px solid #eef0f3;
+    }
+
+    .td-empty {
+      padding: 12px;
+      border: 1px solid #eef0f3;
+      border-top: none;
+      background: #ffffff;
+    }
+
+    .spacer {
+      height: 12px;
+      line-height: 12px;
+      font-size: 12px;
+    }
+
+    .top {
+      vertical-align: top;
+    }
+
+    .w33 {
+      width: 33.33%;
+    }
+
+    .w40 {
+      width: 40%;
+    }
+
+    .w60 {
+      width: 60%;
+    }
+
+    .w100 {
+      width: 100%;
+    }
+
+    .pad-r {
+      padding: 0 8px 0 0;
+    }
+
+    .pad-x {
+      padding: 0 8px;
+    }
+
+    .pad-l {
+      padding: 0 0 0 8px;
+    }
+
+    .pill {
+      display: block;
+      background: #f6f7f9;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
     @media only screen and (max-width: 600px) {
-      .stack { display:block !important; width:100% !important; }
-      .stack-pad { padding-left:0 !important; padding-right:0 !important; }
-      .mt8 { margin-top:8px !important; }
-      .center-mobile { text-align:left !important; }
+      .stack { display: block !important; width: 100% !important; }
+      .stack-pad { padding-left: 0 !important; padding-right: 0 !important; }
+      .mt8 { margin-top: 8px !important; }
+      .center-mobile { text-align: left !important; }
     }
   </style>
 
-  <p style="margin: 0 0 14px 0; text-align: center;">
-    <span style="display:inline-block; background-color:#ecf0f1; color:#169179; padding:10px 12px; border-radius:10px;">
+  <p class="title-wrap">
+    <span class="title-badge">
       <strong>EL CIERRE DE GUARDIA CON ID ${esc(guardiaId)} SE HA PRODUCIDO EXITOSAMENTE</strong>
     </span>
   </p>
 
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; margin:0;">
+  <table role="presentation" class="top-table" cellspacing="0" cellpadding="0">
     <tr>
-      <td class="stack stack-pad" style="width:33.33%; padding:0 8px 0 0; vertical-align:top;">
-        <span style="display:block; background:#f6f7f9; padding:10px 12px; border-radius:10px; font-size:14px;">
+      <td class="stack stack-pad top w33 pad-r">
+        <span class="summary-card">
           <strong>Usuario:</strong> ${esc(userName)}
         </span>
       </td>
-      <td class="stack stack-pad mt8" style="width:33.33%; padding:0 8px; vertical-align:top;">
-        <span style="display:block; background:#f6f7f9; padding:10px 12px; border-radius:10px; font-size:14px;">
+      <td class="stack stack-pad mt8 top w33 pad-x">
+        <span class="summary-card">
           <strong>Entrada:</strong> ${esc(entrada)}
         </span>
       </td>
-      <td class="stack stack-pad mt8" style="width:33.33%; padding:0 0 0 8px; vertical-align:top;">
-        <span style="display:block; background:#f6f7f9; padding:10px 12px; border-radius:10px; font-size:14px;">
+      <td class="stack stack-pad mt8 top w33 pad-l">
+        <span class="summary-card">
           <strong>Salida:</strong> ${esc(salida)}
         </span>
       </td>
     </tr>
   </table>
 
-  <!-- MONITOREOS VEEAM EXITOSOS -->
-  <div style="margin-top:18px;">
-    <div style="margin:0 0 10px 0; text-align:left;">
-      <span style="display:inline-block; font-weight:800; font-size:16px; letter-spacing:.2px;">MONITOREOS VEEAM EXITOSOS</span>
+  <div class="section">
+    <div class="section-title-wrap">
+      <span class="section-title">MONITOREOS VEEAM EXITOSOS</span>
     </div>
 
-    <div style="margin:0; padding:14px; background:#ffffff; border-radius:12px; border:1px solid #eef0f3;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; margin:0;">
+    <div class="box">
+      <table role="presentation" class="inner-table" cellspacing="0" cellpadding="0">
         <tr>
-          <td class="stack stack-pad" style="width:40%; padding:0 8px 0 0; vertical-align:top;">
-            <span style="display:block; background:#f6f7f9; padding:10px 12px; border-radius:10px; font-size:14px;">
+          <td class="stack stack-pad top w40 pad-r">
+            <span class="summary-card">
               <strong>Fecha:</strong> ${esc(salida)}
             </span>
           </td>
-          <td class="stack stack-pad mt8" style="width:60%; padding:0 0 0 8px; vertical-align:top;">
-            <span style="display:block; background:#f6f7f9; padding:10px 12px; border-radius:10px; font-size:14px;">
+          <td class="stack stack-pad mt8 top w60 pad-l">
+            <span class="summary-card">
               <strong>Estatus Veeam:</strong> Completado Exitoso - Backup finalizado sin errores
             </span>
           </td>
         </tr>
       </table>
 
-      <div style="height:12px; line-height:12px; font-size:12px;">&nbsp;</div>
+      <div class="spacer">&nbsp;</div>
 
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; margin:0;">
+      <table role="presentation" class="groups-table" cellspacing="0" cellpadding="0">
         <tr>
           ${groupsHtml}
         </tr>
@@ -267,25 +413,22 @@ export function buildGuardiaCloseEmailHtml({
     </div>
   </div>
 
-  <!-- MONITOREOS VEEAM PENDIENTES -->
-  <div style="margin-top:18px;">
-    <div style="margin:0 0 10px 0; text-align:left;">
-      <span style="display:inline-block; font-weight:800; font-size:16px; letter-spacing:.2px;">MONITOREOS VEEAM PENDIENTES</span>
+  <div class="section">
+    <div class="section-title-wrap">
+      <span class="section-title">MONITOREOS VEEAM PENDIENTES</span>
     </div>
 
-    <div style="margin:0; padding:14px; background:#ffffff; border-radius:12px; border:1px solid #eef0f3;">
-      <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
-          style="border-collapse:separate; border-spacing:0; min-width:980px; font-size:13px;">
+    <div class="box">
+      <div class="table-scroll">
+        <table role="presentation" class="tbl tbl-veeam" cellspacing="0" cellpadding="0">
           <thead>
             <tr>
-              <th align="left" style="background:#f6f7f9; padding:10px; border-top-left-radius:10px; border:1px solid #eef0f3; border-right:none;">ID GUARDIA</th>
-              <th align="left" style="background:#f6f7f9; padding:10px; border:1px solid #eef0f3; border-right:none;">CLIENTE</th>
-              <th align="left" style="background:#f6f7f9; padding:10px; border:1px solid #eef0f3; border-right:none;">SITE</th>
-              <th align="left" style="background:#f6f7f9; padding:10px; border:1px solid #eef0f3; border-right:none;">BACKUP</th>
-              <th align="left" style="background:#f6f7f9; padding:10px; border:1px solid #eef0f3; border-right:none;">FECHA DE RESTAURACIÓN</th>
-              <th align="left" style="background:#f6f7f9; padding:10px; border:1px solid #eef0f3; border-right:none;">ESTATUS VEEAM</th>
-              <th align="left" style="background:#f6f7f9; padding:10px; border-top-right-radius:10px; border:1px solid #eef0f3;">OBSERVACIÓN</th>
+              <th class="th th-left">CLIENTE</th>
+              <th class="th">SITE</th>
+              <th class="th">BACKUP</th>
+              <th class="th">FECHA DE RESTAURACIÓN</th>
+              <th class="th">ESTATUS VEEAM</th>
+              <th class="th th-right">OBSERVACIÓN</th>
             </tr>
           </thead>
           <tbody>
@@ -296,22 +439,18 @@ export function buildGuardiaCloseEmailHtml({
     </div>
   </div>
 
-  <!-- TICKETS PENDIENTES -->
-  <div style="margin-top:18px;">
-    <div style="margin:0 0 10px 0; text-align:left;">
-      <span style="display:inline-block; font-weight:800; font-size:16px; letter-spacing:.2px;">TICKETS PENDIENTES</span>
+  <div class="section">
+    <div class="section-title-wrap">
+      <span class="section-title">TICKETS PENDIENTES</span>
     </div>
 
-    <div style="margin:0; padding:14px; background:#ffffff; border-radius:12px; border:1px solid #eef0f3;">
-      <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
-          style="border-collapse:separate; border-spacing:0; min-width:820px; font-size:13px;">
+    <div class="box">
+      <div class="table-scroll">
+        <table role="presentation" class="tbl tbl-tickets" cellspacing="0" cellpadding="0">
           <thead>
             <tr>
-              <th align="left" style="background:#f6f7f9; padding:10px; border:1px solid #eef0f3; border-right:none;"># TICKET</th>
-              <th align="left" style="background:#f6f7f9; padding:10px; border:1px solid #eef0f3; border-right:none;">TÍTULO</th>
-              <th align="left" style="background:#f6f7f9; padding:10px; border:1px solid #eef0f3; border-right:none;">ASIGNADO</th>
-              <th align="left" style="background:#f6f7f9; padding:10px; border-top-right-radius:10px; border:1px solid #eef0f3;">ESTATUS</th>
+              <th class="th th-left"># TICKET</th>
+              <th class="th th-right">TÍTULO</th>
             </tr>
           </thead>
           <tbody>

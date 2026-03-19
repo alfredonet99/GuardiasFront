@@ -12,6 +12,29 @@ import useGuardiaCloseData from "../../../hooks/Guardia/getcloseGuard";
 import useGuardMonitData from "../../../hooks/Guardia/getMonitGuard";
 import { buildGuardiaCloseEmailHtml } from "../../../utils/emailCloseGuard";
 
+function getBytesSize(value) {
+	const text = typeof value === "string" ? value : JSON.stringify(value ?? {});
+	return new TextEncoder().encode(text).length;
+}
+
+function formatBytes(bytes) {
+	if (bytes < 1024) return `${bytes} B`;
+	return `${(bytes / 1024).toFixed(2)} KB`;
+}
+
+function debugEmailPayloadSize(label, data) {
+	const bytes = getBytesSize(data);
+	const kb = bytes / 1024;
+
+	console.log(`[EMAIL SIZE] ${label}: ${bytes} bytes (${kb.toFixed(2)} KB)`);
+
+	return {
+		bytes,
+		kb,
+		ok: kb < 50,
+	};
+}
+
 export default function EditGuardias() {
 	const navigate = useNavigate();
 	const ticketsRef = useRef(null);
@@ -224,19 +247,38 @@ export default function EditGuardias() {
 
 			const subject = `Cierre de Guardia #${guardia?.id ?? "—"}`;
 
-			try {
-				await emailjs.send(
-					SERVICE_ID,
-					TEMPLATE_ID,
-					{
-						to_email: TO_EMAIL,
-						subject,
-						guardia_id: String(guardia?.id ?? ""),
-						user_name: String(guardia?.user?.name ?? guardia?.user_name ?? ""),
-						html_body,
-					},
-					PUBLIC_KEY,
+			const templateParams = {
+				to_email: TO_EMAIL,
+				subject,
+				guardia_id: String(guardia?.id ?? ""),
+				user_name: String(guardia?.user?.name ?? guardia?.user_name ?? ""),
+				html_body,
+			};
+
+			const payloadPreview = {
+				service_id: SERVICE_ID,
+				template_id: TEMPLATE_ID,
+				template_params: templateParams,
+			};
+
+			debugEmailPayloadSize("html_body", html_body);
+			debugEmailPayloadSize("templateParams", templateParams);
+			const result = debugEmailPayloadSize("payload", payloadPreview);
+
+			// margen de seguridad
+			if (result.kb >= 45) {
+				console.warn(
+					`⚠️ El correo pesa ${result.kb.toFixed(2)} KB y puede exceder el límite de EmailJS.`,
 				);
+
+				return {
+					ok: false,
+					message: `El correo pesa ${result.kb.toFixed(2)} KB y puede exceder el límite permitido por EmailJS.`,
+				};
+			}
+
+			try {
+				await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
 
 				return { ok: true };
 			} catch (e) {
