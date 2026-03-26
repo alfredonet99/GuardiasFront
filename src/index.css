@@ -65,3 +65,60 @@
 		}
 	}
 }
+
+/* =========================
+   IMPRESIÓN / PDF
+========================= */
+@page {
+	size: A4 landscape;
+	margin: 10mm;
+}
+
+@media print {
+	html,
+	body {
+		background: white !important;
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+	}
+
+	.no-print {
+		display: none !important;
+	}
+
+	.print-container {
+		width: 210mm !important;
+		min-height: 297mm !important;
+		margin: 0 auto !important;
+		padding: 0 !important;
+		background: white !important;
+		box-shadow: none !important;
+		border: none !important;
+	}
+
+	.print-table {
+		width: 100%;
+		border-collapse: collapse;
+	}
+
+	.print-table thead {
+		display: table-header-group;
+	}
+
+	.print-table tfoot {
+		display: table-footer-group;
+	}
+
+	.print-table tr,
+	.print-table td,
+	.print-table th {
+		page-break-inside: avoid;
+		break-inside: avoid;
+	}
+
+	.ticket-table-zoom {
+		zoom: 1 !important;
+		transform: none !important;
+		width: 100% !important;
+	}
+}

@@ -30,6 +30,10 @@ export default function MainRoutes() {
 		path.includes("ExpiredToken.jsx"),
 	)?.[1].default;
 
+	const ReportPreview = Object.entries(pages).find(([path]) =>
+		path.includes("ImportExcel.jsx"),
+	)?.[1].default;
+
 	return (
 		<Routes>
 			<Route
@@ -41,6 +45,9 @@ export default function MainRoutes() {
 			<Route path="/restaurar-password" element={<RecoverPasswordPage />} />
 			<Route path="/confirm-pass" element={<PasswordPage />} />
 			<Route path="/error-400" element={<ExpiredToken />} />
+			{ReportPreview && (
+				<Route path="/demo-reporte" element={<ReportPreview />} />
+			)}
 			<Route
 				path="/"
 				element={

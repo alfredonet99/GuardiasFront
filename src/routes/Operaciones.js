@@ -63,7 +63,7 @@ export default [
 		"edit",
 	]),
 	r("/operaciones/tickets/:slug/ver-ticket", "ShowTicket", "tickets", ["show"]),
-
+	r("/operaciones/tickets/reportes", "ImportTicket", "tickets", ["edit"]),
 	//=== Monitoreos ===
 	r("/operaciones/monitoreos", "ListMonitoreos", "monitoreos", ["browse"]),
 	r("/operaciones/monitoreos/crear", "CreateMonitoreo", "monitoreos", [
