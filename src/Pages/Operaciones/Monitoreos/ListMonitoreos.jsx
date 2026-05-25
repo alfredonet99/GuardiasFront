@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { privateInstance } from "../../../api/axios";
-
 import {
 	IconCreate,
 	IconDelete,
@@ -334,7 +333,7 @@ export default function ListMonitoreos() {
 												<td className="whitespace-nowrap px-4 py-3">
 													<div className="flex items-center gap-2">
 														<IconShow
-															to={`/operaciones/monitoreos/${row.id}`}
+															to={`/operaciones/monitoreos/${row.id}/ver`}
 														/>
 
 														{canToggle ? (

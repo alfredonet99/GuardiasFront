@@ -75,6 +75,7 @@ export default [
 	r("/operaciones/monitoreos/:id/editar", "EditMonitoreo", "monitoreos", [
 		"edit",
 	]),
+	r("/operaciones/monitoreos/:id/ver", "ShowMonitoreo", "monitoreos", ["show"]),
 	//=== App ===
 	r("/operaciones/app", "ListApp", "appclient", ["browse"]),
 	r("/operaciones/app/crear", "CreateApp", "appclient", ["create"]),

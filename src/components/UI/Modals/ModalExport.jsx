@@ -377,7 +377,10 @@ export default function ExportModal({
 
 						<div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-3 xl:gap-4">
 							<div>
-								<label className="mb-0.5 block text-[11px] font-medium text-slate-700 xl:text-sm dark:text-slate-200">
+								<label
+									htmlFor=""
+									className="mb-0.5 block text-[11px] font-medium text-slate-700 xl:text-sm dark:text-slate-200"
+								>
 									Fecha inicio{" "}
 									{filterMode === "range" && (
 										<span className="text-red-600">*</span>
@@ -417,7 +420,10 @@ export default function ExportModal({
 							</div>
 
 							<div>
-								<label className="mb-0.5 block text-[11px] font-medium text-slate-700 xl:text-sm dark:text-slate-200">
+								<label
+									htmlFor=""
+									className="mb-0.5 block text-[11px] font-medium text-slate-700 xl:text-sm dark:text-slate-200"
+								>
 									Fecha fin{" "}
 									{filterMode === "range" && (
 										<span className="text-red-600">*</span>
@@ -458,7 +464,10 @@ export default function ExportModal({
 							</div>
 
 							<div>
-								<label className="mb-0.5 block text-[11px] font-medium text-slate-700 xl:text-sm dark:text-slate-200">
+								<label
+									htmlFor=""
+									className="mb-0.5 block text-[11px] font-medium text-slate-700 xl:text-sm dark:text-slate-200"
+								>
 									Mes{" "}
 									{filterMode === "month" && (
 										<span className="text-red-600">*</span>

@@ -8,6 +8,9 @@ import TableStateMessage from "../../Loaders/TableStateMessage";
 import MonitProblem from "../../Monitoreos/MonitProblem";
 
 const FORCE_CHANGE_AFTER_DAYS = 7;
+const MIN_DISTINCT_WORDS = 3;
+const MAX_ALLOWED_WORD_OVERLAP = 0.7;
+const BLOCK_SAME_PREFIX_WORDS = 3;
 
 function normalizeDateRest(v) {
 	if (!v) return "";
@@ -34,6 +37,103 @@ function ageDaysFromCreatedAt(createdAt) {
 	const diff = now - ms;
 	if (diff < 0) return 0;
 	return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+function stripAccents(value) {
+	return String(value ?? "")
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "");
+}
+
+function normalizeObservationText(value) {
+	return stripAccents(value)
+		.toLowerCase()
+		.replace(/[^a-z0-9\s]/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+function getObservationWords(value) {
+	const normalized = normalizeObservationText(value);
+	if (!normalized) return [];
+	return normalized.split(" ").filter(Boolean);
+}
+
+function getMeaningfulObservationWords(value) {
+	return getObservationWords(value).filter((word) => word.length >= 3);
+}
+
+function getCommonPrefixWordsCount(wordsA, wordsB) {
+	const limit = Math.min(wordsA.length, wordsB.length);
+	let count = 0;
+
+	for (let i = 0; i < limit; i += 1) {
+		if (wordsA[i] !== wordsB[i]) break;
+		count += 1;
+	}
+
+	return count;
+}
+
+function getWordOverlapRatio(wordsA, wordsB) {
+	const setA = new Set(wordsA);
+	const setB = new Set(wordsB);
+
+	if (setA.size === 0 || setB.size === 0) return 0;
+
+	let intersection = 0;
+	for (const word of setA) {
+		if (setB.has(word)) intersection += 1;
+	}
+
+	return intersection / Math.max(setA.size, setB.size);
+}
+
+function isMeaningfullyDifferentObservation(previousValue, nextValue) {
+	const prevNormalized = normalizeObservationText(previousValue);
+	const nextNormalized = normalizeObservationText(nextValue);
+
+	if (!nextNormalized) return false;
+	if (!prevNormalized) return nextNormalized.length > 0;
+
+	if (nextNormalized === prevNormalized) return false;
+
+	if (
+		prevNormalized.includes(nextNormalized) ||
+		nextNormalized.includes(prevNormalized)
+	) {
+		return false;
+	}
+
+	const prevWordsAll = getObservationWords(previousValue);
+	const nextWordsAll = getObservationWords(nextValue);
+
+	const prevWords = getMeaningfulObservationWords(previousValue);
+	const nextWords = getMeaningfulObservationWords(nextValue);
+
+	if (nextWords.length < MIN_DISTINCT_WORDS) return false;
+
+	const commonPrefixCount = getCommonPrefixWordsCount(
+		prevWordsAll,
+		nextWordsAll,
+	);
+	const minWordsForPrefixBlock = Math.min(
+		BLOCK_SAME_PREFIX_WORDS,
+		prevWordsAll.length,
+		nextWordsAll.length,
+	);
+
+	if (
+		minWordsForPrefixBlock > 0 &&
+		commonPrefixCount >= minWordsForPrefixBlock
+	) {
+		return false;
+	}
+
+	const overlapRatio = getWordOverlapRatio(prevWords, nextWords);
+	if (overlapRatio >= MAX_ALLOWED_WORD_OVERLAP) return false;
+
+	return true;
 }
 
 function normalizeClientItemFromDb(row, site) {
@@ -77,6 +177,20 @@ function computePreviewConcluidoFromVeeamStatus(estatusVeeam) {
 	if (s === "1" || s === "2") return "2";
 	if (!s) return "";
 	return "1";
+}
+
+function getClientDisplayLabel(item) {
+	const label = String(item?.label ?? "").trim();
+	if (label) return label;
+
+	const numCV = String(item?.numCV ?? "").trim();
+	const nameCV = String(item?.nameCV ?? "").trim();
+
+	if (numCV && nameCV) return `${numCV} - ${nameCV}`;
+	if (numCV) return numCV;
+	if (nameCV) return nameCV;
+
+	return `ID ${item?.id ?? ""}`;
 }
 
 export default function MonitProblemGuard({
@@ -402,12 +516,40 @@ export default function MonitProblemGuard({
 			const statusChanged =
 				curStatus.length > 0 && String(curStatus) !== String(initStatus);
 
-			const obsChanged =
-				curObs.length > 0 && String(curObs) !== String(initObs);
+			const obsChanged = isMeaningfullyDifferentObservation(initObs, curObs);
 
 			const concluded = curStatus === "1";
 
 			return statusChanged || obsChanged || concluded;
+		},
+		[initialSnapshot, problemForm],
+	);
+
+	const hasRepeatedOrSlightlyAdjustedObservation = useCallback(
+		(item) => {
+			if (!item || item?._source !== "db") return false;
+
+			const key = String(item?.id ?? "");
+			if (!key) return false;
+
+			const init = initialSnapshot?.[key] ?? {
+				estatus: String(item?.estatus ?? ""),
+				observacion: String(item?.observacion ?? ""),
+			};
+
+			const cur = problemForm?.[key] ?? {};
+
+			const curStatus = String(cur?.estatus ?? "").trim();
+			const curObs = String(cur?.observacion ?? "").trim();
+
+			const initStatus = String(init?.estatus ?? "").trim();
+			const initObs = String(init?.observacion ?? "").trim();
+
+			if (!curObs) return false;
+			if (curStatus === "1") return false;
+			if (curStatus !== initStatus) return false;
+
+			return !isMeaningfullyDifferentObservation(initObs, curObs);
 		},
 		[initialSnapshot, problemForm],
 	);
@@ -435,6 +577,19 @@ export default function MonitProblemGuard({
 			return;
 		}
 
+		const repeatedObservationItem = (mergedItems ?? []).find((item) =>
+			hasRepeatedOrSlightlyAdjustedObservation(item),
+		);
+
+		if (repeatedObservationItem) {
+			const label = getClientDisplayLabel(repeatedObservationItem);
+
+			setFormError(
+				`La observación del cliente ${label} debe ser una oración realmente distinta. No se permite repetirla, recortarla, dejar el mismo inicio ni hacer ajustes mínimos como puntos, comas o una sola palabra diferente.`,
+			);
+			return;
+		}
+
 		const mustAct = (mergedItems ?? []).filter((it) =>
 			requiresActionForItem(it),
 		);
@@ -442,14 +597,10 @@ export default function MonitProblemGuard({
 
 		if (notActed.length > 0) {
 			const first = notActed[0];
-			const label =
-				String(first?.label ?? "").trim() ||
-				(String(first?.numCV ?? "").trim() && String(first?.nameCV ?? "").trim()
-					? `${first.numCV} - ${first.nameCV}`
-					: "");
+			const label = getClientDisplayLabel(first);
 
 			setFormError(
-				`Hay ${notActed.length} monitoreo(s) de BD con más de ${FORCE_CHANGE_AFTER_DAYS} días que requieren al menos 1 acción: cambiar Estatus, cambiar Observación o Concluir. ` +
+				`Hay ${notActed.length} monitoreo(s) con más de ${FORCE_CHANGE_AFTER_DAYS} días que requieren una acción real: cambiar Estatus, capturar una observación distinta o Concluir. ` +
 					(label ? `Ejemplo: ${label}.` : ""),
 			);
 			return;
@@ -495,9 +646,9 @@ export default function MonitProblemGuard({
 		onSaved,
 		active,
 		mergedItems,
-		problemForm,
 		requiresActionForItem,
 		didUserDoOneAction,
+		hasRepeatedOrSlightlyAdjustedObservation,
 	]);
 
 	const renderTabs = () => (
@@ -539,8 +690,8 @@ export default function MonitProblemGuard({
 					</p>
 					<p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
 						Regla: si un monitoreo viene de BD y tiene más de{" "}
-						{FORCE_CHANGE_AFTER_DAYS} días, debes hacer al menos 1 acción:
-						cambiar Estatus, cambiar Observación o Concluir.
+						{FORCE_CHANGE_AFTER_DAYS} días, debes hacer una acción real: cambiar
+						Estatus, capturar una observación distinta o Concluir.
 					</p>
 				</div>
 

@@ -5,6 +5,8 @@ import {
 	IconDelete,
 	IconEdit,
 	IconShow,
+	IconImport,
+	IconExport,
 } from "../../../../components/icons/Crud/exportCrud";
 import ToggleUserStatusButton from "../../../../components/UI/Active/BtnActive";
 import StatusList from "../../../../components/UI/Active/Status";
@@ -142,13 +144,15 @@ export default function ListClientVeeam() {
 	};
 
 	return (
-		<div className="min-h-screen w-full bg-slate-100 dark:bg-slate-950 px-6 py-6 text-slate-800 dark:text-slate-200">
+		<div className=" min-h-screen w-full bg-slate-100 dark:bg-slate-950 px-6 py-6 text-slate-800 dark:text-slate-200">
 			<header className="flex items-center justify-between mb-6">
 				<h1 className="text-2xl font-bold px-2 text-slate-800 dark:text-slate-100">
 					Lista Clientes Veeam
 				</h1>
 
 				<div className="flex items-center gap-2 justify-end">
+					<IconImport></IconImport>
+					<IconExport></IconExport>
 					<StatusList
 						value={inactive}
 						onChange={(val) => {

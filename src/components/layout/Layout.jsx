@@ -156,9 +156,9 @@ export default function MainLayout() {
 
 			<PageTitleProvider>
 				<RouteTitleUpdater></RouteTitleUpdater>
-				<main className=" ml-16 p-4 transition-all duration-300 relative">
+				<main className="zoom-table-9 ml-16 p-4 transition-all duration-300 relative">
 					<div
-						className="fixed top-0 left-16 right-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700
+						className="zoom-table-9 fixed top-0 left-18 right-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700
 							shadow-sm px-4 py-3 flex items-center justify-between gap-4 backdrop-blur-md transition-colors"
 					>
 						<RoutePageTitleManager />

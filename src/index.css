@@ -30,6 +30,26 @@
 	}
 }
 
+/*Zoom .9*/
+.zoom-table-9 {
+	zoom: 1;
+}
+
+/* Windows 125% aprox (devicePixelRatio ~ 1.25) */
+@media (min-resolution: 1.25dppx) {
+	.zoom-table-9 {
+		zoom: 1; /* puedes ajustar: 0.9 / 0.85 / 0.8 */
+	}
+}
+
+/* Windows 150% aprox (devicePixelRatio ~ 1.5) */
+@media (min-resolution: 1.5dppx) {
+	.zoom-table-9 {
+		zoom: 0.9;
+	}
+}
+
+/*tickets*/
 .ticket-table-zoom {
 	zoom: 1;
 }
