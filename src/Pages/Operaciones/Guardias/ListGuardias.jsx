@@ -157,7 +157,9 @@ export default function Guardias() {
 										<td className="px-4 py-3">
 											<div className="flex items-center justify-center gap-2">
 												{(g.status === 2 || g.status === 3) && (
-													<IconShow to={`/operaciones/guardias/${g.id}`} />
+													<IconShow
+														to={`/operaciones/guardias/${g.id}/ver-guardias`}
+													/>
 												)}
 												{g.status === 1 && (
 													<IconEdit

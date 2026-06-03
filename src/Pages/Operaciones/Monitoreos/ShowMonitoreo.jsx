@@ -1,8 +1,8 @@
-import BackButton from "../../../components/UI/ConfirmBtn/ExitConfirmShow";
+import { useState } from "react";
 import IconEditShow from "../../../components/icons/Crud/EditShow";
+import BackButton from "../../../components/UI/ConfirmBtn/ExitConfirmShow";
 import FlashMessage from "../../../components/UI/Errors/ErrorsGlobal";
 import useFlashMessage from "../../../hooks/Errors/ErrorMessage";
-import { useState } from "react";
 
 export default function ShowMonitoreo() {
 	const [monitoreo, setMonitoreo] = useState(null);
