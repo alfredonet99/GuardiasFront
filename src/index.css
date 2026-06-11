@@ -1,21 +1,144 @@
 @import "tailwindcss";
 
 @layer utilities {
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
 
-  @keyframes scaleIn {
-    from { transform: scale(0.95); opacity: 0; }
-    to   { transform: scale(1); opacity: 1; }
-  }
+	@keyframes scaleIn {
+		from {
+			transform: scale(0.95);
+			opacity: 0;
+		}
+		to {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}
 
-  .animate-fadeIn {
-    animation: fadeIn 0.15s ease-out;
-  }
+	.animate-fadeIn {
+		animation: fadeIn 0.15s ease-out;
+	}
 
-  .animate-scaleIn {
-    animation: scaleIn 0.22s ease-out;
-  }
+	.animate-scaleIn {
+		animation: scaleIn 0.22s ease-out;
+	}
+}
+
+/*Zoom .9*/
+.zoom-table-9 {
+	zoom: 1;
+}
+
+/* Windows 125% aprox (devicePixelRatio ~ 1.25) */
+@media (min-resolution: 1.25dppx) {
+	.zoom-table-9 {
+		zoom: 1; /* puedes ajustar: 0.9 / 0.85 / 0.8 */
+	}
+}
+
+/* Windows 150% aprox (devicePixelRatio ~ 1.5) */
+@media (min-resolution: 1.5dppx) {
+	.zoom-table-9 {
+		zoom: 0.9;
+	}
+}
+
+/*tickets*/
+.ticket-table-zoom {
+	zoom: 1;
+}
+
+/* Windows 125% aprox (devicePixelRatio ~ 1.25) */
+@media (min-resolution: 1.25dppx) {
+	.ticket-table-zoom {
+		zoom: 0.85; /* puedes ajustar: 0.9 / 0.85 / 0.8 */
+	}
+}
+
+/* Windows 150% aprox (devicePixelRatio ~ 1.5) */
+@media (min-resolution: 1.5dppx) {
+	.ticket-table-zoom {
+		zoom: 0.8;
+	}
+}
+
+/* Fallback si un navegador no soporta zoom (ej. Firefox)
+   OJO: Firefox ignora zoom, aquí usamos transform.
+*/
+@supports not (zoom: 1) {
+	.ticket-table-zoom {
+		transform: scale(0.85);
+		transform-origin: top left;
+		width: 117.65%; /* 1 / 0.85 */
+	}
+
+	@media (min-resolution: 1.5dppx) {
+		.ticket-table-zoom {
+			transform: scale(0.8);
+			width: 125%; /* 1 / 0.8 */
+		}
+	}
+}
+
+/* =========================
+   IMPRESIÓN / PDF
+========================= */
+@page {
+	size: A4 landscape;
+	margin: 10mm;
+}
+
+@media print {
+	html,
+	body {
+		background: white !important;
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+	}
+
+	.no-print {
+		display: none !important;
+	}
+
+	.print-container {
+		width: 210mm !important;
+		min-height: 297mm !important;
+		margin: 0 auto !important;
+		padding: 0 !important;
+		background: white !important;
+		box-shadow: none !important;
+		border: none !important;
+	}
+
+	.print-table {
+		width: 100%;
+		border-collapse: collapse;
+	}
+
+	.print-table thead {
+		display: table-header-group;
+	}
+
+	.print-table tfoot {
+		display: table-footer-group;
+	}
+
+	.print-table tr,
+	.print-table td,
+	.print-table th {
+		page-break-inside: avoid;
+		break-inside: avoid;
+	}
+
+	.ticket-table-zoom {
+		zoom: 1 !important;
+		transform: none !important;
+		width: 100% !important;
+	}
 }

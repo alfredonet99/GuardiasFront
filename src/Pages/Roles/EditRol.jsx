@@ -1,243 +1,394 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
-import ExitConfirm from "../../components/UI/ConfirmBtn/ExitConfirm";
+import { useNavigate, useParams } from "react-router-dom";
 import { privateInstance } from "../../api/axios";
-import { refreshPermissions } from "../../services/auth";
-import useFlashMessage from "../../hooks/Errors/ErrorMessage";
-import FlashMessage from "../../components/UI/Errors/ErrorsGlobal";
+import ExitConfirm from "../../components/UI/ConfirmBtn/ExitConfirm";
 import FieldError from "../../components/UI/Errors/ElementsErrors";
-import { useFieldErrors } from "../../hooks/Errors/MessageInputs";
-import { useAutoClearErrors } from "../../hooks/Errors/clearErrorMessage";
+import FlashMessage from "../../components/UI/Errors/ErrorsGlobal";
 import { useAuthMe } from "../../hooks/Auth/AuthMe";
+import { useAutoClearErrors } from "../../hooks/Errors/clearErrorMessage";
+import useFlashMessage from "../../hooks/Errors/ErrorMessage";
+import { useFieldErrors } from "../../hooks/Errors/MessageInputs";
+import { refreshPermissions } from "../../services/auth";
 import PermissionDenied from "../Errors/PermissionDenied";
 
 export default function EditRol() {
-  const navigate = useNavigate();
-  const { id } = useParams();
-  const { isAdmin, loading: loadingMe } = useAuthMe();
-  const [targetIsAdmin, setTargetIsAdmin] = useState(null);
-  const [denied, setDenied] = useState(false);
+	const navigate = useNavigate();
+	const { id } = useParams();
+	const { isAdmin, loading: loadingMe } = useAuthMe();
+	const [targetIsAdmin, setTargetIsAdmin] = useState(null);
+	const [denied, setDenied] = useState(false);
 
-  const { localErrors, errorKey, validateFields, clearError } = useFieldErrors();
-  const { message, showMessage, clearMessage } = useFlashMessage();
+	const { localErrors, errorKey, validateFields, clearError } =
+		useFieldErrors();
+	const { message, showMessage, clearMessage } = useFlashMessage();
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+	const [loading, setLoading] = useState(true);
+	const [saving, setSaving] = useState(false);
 
-  const [roleName, setRoleName] = useState("");
-  const [permissions, setPermissions] = useState([]);
-  const [assigned, setAssigned] = useState([]);
-  const [openModules, setOpenModules] = useState({});
+	const [roleName, setRoleName] = useState("");
+	const [permissions, setPermissions] = useState([]);
+	const [assigned, setAssigned] = useState([]);
+	const [openModules, setOpenModules] = useState({});
 
-  const formValues = { roleName, assigned };
-  useAutoClearErrors(formValues, localErrors, clearError);
+	const LAYERS = [
+		{ key: "admin", label: "Administrador", areaId: null },
+		{ key: "op", label: "Operaciones", areaId: 1 },
+		{ key: "inf", label: "Infraestructura", areaId: 2 },
+		{ key: "com", label: "Comunicaciones", areaId: 4 },
+	];
+	const [layerKey, setLayerKey] = useState("admin");
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const res = await privateInstance.get(`/roles/${id}/editar`);
+	const selectedLayer = useMemo(
+		() => LAYERS.find((l) => l.key === layerKey) ?? LAYERS[0],
+		[layerKey],
+	);
 
-        const perms = res.data.permissions || [];
-        setPermissions(perms);
+	const permissionsFiltered = useMemo(() => {
+		if (!isAdmin) return permissions;
 
-        const role = res.data.role || {};
-        setRoleName(role.name || "");
+		const areaId = selectedLayer.areaId;
+		return permissions.filter((p) => (p.id_area ?? null) === areaId);
+	}, [permissions, selectedLayer, isAdmin]);
 
-        setTargetIsAdmin((role.name || "") === "Administrador");
+	const formValues = { roleName, assigned };
+	useAutoClearErrors(formValues, localErrors, clearError);
 
-        const fromRole = Array.isArray(role.permissions)
-          ? role.permissions.map((p) => p.name).filter(Boolean)
-          : [];
+	useEffect(() => {
+		if (!id) return;
 
-        const fromAssigned = Array.isArray(res.data.assigned)
-          ? res.data.assigned.filter(Boolean)
-          : [];
+		let alive = true;
 
-        setAssigned(fromAssigned.length ? fromAssigned : fromRole);
-      } catch (err) {
-        console.error("Error al cargar rol:", err);
-        showMessage("No se pudo cargar la información del rol.", "error");
-      } finally {
-        setLoading(false);
-      }
-    };
+		const loadData = async () => {
+			try {
+				const res = await privateInstance.get(`/roles/${id}/editar`);
+				if (!alive) return;
 
-    loadData();
-  }, [id]);
+				const perms = res.data.permissions || [];
+				setPermissions(perms);
 
-  useEffect(() => {
-  if (loadingMe) return;
-  if (loading) return;       
-  if (targetIsAdmin === null) return;
+				const role = res.data.role || {};
+				setRoleName(role.name || "");
 
-  if (!isAdmin && targetIsAdmin && !denied) {
-    showMessage("No tienes permiso para editar el rol Administrador.", "error");
-    setDenied(true);
-  }
-}, [loadingMe, loading, isAdmin, targetIsAdmin, denied, showMessage]);
+				setTargetIsAdmin((role.name || "") === "Administrador");
 
-  const grouped = useMemo(() => {
-    const groups = {};
-    permissions.forEach((perm) => {
-      const [module] = (perm.name || "").split(".");
-      if (!module) return;
-      if (!groups[module]) groups[module] = [];
-      groups[module].push(perm);
-    });
-    return groups;
-  }, [permissions]);
+				const fromAssigned = Array.isArray(res.data.assigned_permissions)
+					? res.data.assigned_permissions.filter(Boolean)
+					: [];
+				setAssigned(fromAssigned);
 
-  useEffect(() => {
-    const initial = {};
-    Object.keys(grouped).forEach((m) => (initial[m] = true));
-    setOpenModules(initial);
-  }, [grouped]);
+				if (isAdmin) {
+					const rolePerms = Array.isArray(role?.permissions)
+						? role.permissions
+						: [];
 
-  const toggleModule = (module) =>
-    setOpenModules((prev) => ({ ...prev, [module]: !prev[module] }));
+					const firstAreaId =
+						rolePerms.find(
+							(p) => p?.id_area !== undefined && p?.id_area !== null,
+						)?.id_area ?? null;
 
-  const togglePermission = (permName) => {
-    setAssigned((prev) =>
-      prev.includes(permName) ? prev.filter((p) => p !== permName) : [...prev, permName]
-    );
-  };
+					let areaId = firstAreaId;
 
-  const selectAll = (perms) => {
-    const all = perms.map((p) => p.name).filter(Boolean);
-    setAssigned((prev) => Array.from(new Set([...prev, ...all])));
-  };
+					if (areaId === null) {
+						const assignedSet = new Set(fromAssigned);
 
-  const selectNone = (perms) => {
-    const all = perms.map((p) => p.name).filter(Boolean);
-    setAssigned((prev) => prev.filter((p) => !all.includes(p)));
-  };
+						const match = perms.find(
+							(p) =>
+								assignedSet.has(p?.name) &&
+								p?.id_area !== undefined &&
+								p?.id_area !== null,
+						);
 
-  const handleUpdate = async () => {
-    clearMessage();
+						areaId = match?.id_area ?? null;
+					}
 
-    const rules = {
-      roleName: { required: true, message: "Ingresa un nombre de rol valido" },
-      assigned: { required: true, message: "Selecciona al menos un permiso." },
-    };
+					const matchLayer =
+						LAYERS.find((l) => (l.areaId ?? null) === (areaId ?? null)) ??
+						LAYERS[0];
 
-    const isValid = validateFields(rules, { roleName, assigned });
-    if (!isValid) return;
+					setLayerKey(matchLayer.key);
+				}
+			} catch (err) {
+				if (!alive) return;
 
-    setSaving(true);
-    try {
-      await privateInstance.put(`/roles/${id}`, {
-        permissions: assigned,
-      });
+				console.error("Error al cargar rol:", err);
+				showMessage("No se pudo cargar la información del rol.", "error");
+			} finally {
+				if (alive) setLoading(false);
+			}
+		};
 
-      await refreshPermissions();
-      navigate("/admin/roles");
-    } catch (err) {
-      console.error("Error al actualizar rol:", err);
+		loadData();
 
-      if (err.response?.status === 422) {
-        const errs = err.response.data?.errors;
-        if (errs) {
-          const first = Object.values(errs)[0]?.[0];
-          showMessage(first || "Revisa los campos del formulario.", "error");
-        } else {
-          showMessage(err.response.data?.message || "No se pudo actualizar el rol.", "error");
-        }
-      } else if (err.response?.status === 403) {
-        showMessage(err.response.data?.message || "No tienes permiso para esta acción.", "error");
-      } else {
-        showMessage("No se pudo actualizar el rol. Intenta de nuevo.", "error");
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
+		return () => {
+			alive = false;
+		};
+	}, [id, showMessage, isAdmin]);
 
-  if (loading) {
-    return (
-      <div className="p-6 text-center text-slate-500 dark:text-slate-300"> Cargando formulario... </div>
-    );
-  }
+	useEffect(() => {
+		if (loadingMe) return;
+		if (loading) return;
+		if (targetIsAdmin === null) return;
 
-  if (loadingMe) return null;
-  if (denied) return <PermissionDenied />;
+		if (!isAdmin && targetIsAdmin && !denied) {
+			showMessage(
+				"No tienes permiso para editar el rol Administrador.",
+				"error",
+			);
+			setDenied(true);
+		}
+	}, [loadingMe, loading, isAdmin, targetIsAdmin, denied, showMessage]);
 
-  return (
-    <div className="min-h-screen w-full px-6 py-6 bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200">
-      <header className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2 mx-1">Editar Rol</h1>
-        <ExitConfirm to="/admin/roles" />
-      </header>
+	const grouped = useMemo(() => {
+		const groups = {};
+		permissionsFiltered.forEach((perm) => {
+			const [module] = (perm.name || "").split(".");
+			if (!module) return;
+			if (!groups[module]) groups[module] = [];
+			groups[module].push(perm);
+		});
+		return groups;
+	}, [permissionsFiltered]);
 
-      <section className="bg-white dark:bg-slate-900 rounded-xl shadow border border-slate-200 dark:border-slate-800 p-6">
-        <div className="mb-6">
-          <label className="font-semibold text-sm">Nombre del rol</label>
-          <input type="text" disabled value={roleName} onChange={(e) => setRoleName(e.target.value)} placeholder="Ej. supervisor_operaciones"
-            className="mt-1 w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-600 outline-none cursor-not-allowed"
-          />
-          <FieldError message={localErrors.roleName} resetKey={errorKey} />
-        </div>
+	useEffect(() => {
+		const initial = {};
+		for (const m of Object.keys(grouped)) {
+			initial[m] = true;
+		}
+		setOpenModules(initial);
+	}, [grouped]);
 
-        <div className="space-y-4 pr-1 overflow-visible">
-          {Object.entries(grouped).map(([module, perms]) => {
-            const isOpen = openModules[module] ?? true;
+	const toggleModule = (module) =>
+		setOpenModules((prev) => ({ ...prev, [module]: !prev[module] }));
 
-            return (
-              <div key={module} className="border border-slate-200 dark:border-slate-800 rounded-lg p-4 bg-slate-50/60 dark:bg-slate-900/60">
-                <button type="button" onClick={() => toggleModule(module)}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-md border border-slate-300/70 dark:border-slate-700
-                  bg-slate-200 text-slate-800 dark:bg-slate-900/80 dark:text-slate-50 text-left font-semibold text-sm md:text-base capitalize hover:bg-slate-300 dark:hover:bg-slate-800/80 transition"
-                >
-                  <span>
-                    {module}{" "}
-                    <span className="text-xs font-normal opacity-70"> ({perms.length}) </span>
-                  </span>
-                  {isOpen ? <FiChevronUp className="text-sm" /> : <FiChevronDown className="text-sm" />}
-                </button>
+	const togglePermission = (permName) => {
+		setAssigned((prev) =>
+			prev.includes(permName)
+				? prev.filter((p) => p !== permName)
+				: [...prev, permName],
+		);
+	};
 
-                {isOpen && (
-                  <>
-                    <div className="flex justify-end gap-2 text-xs mt-3 mb-2">
-                      <button type="button" onClick={() => selectAll(perms)} className="px-2 py-1 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700">
-                        Todos
-                      </button>
-                      <button type="button" onClick={() => selectNone(perms)} className="px-2 py-1 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700">
-                        Ninguno
-                      </button>
-                    </div>
+	const selectAll = (perms) => {
+		const all = perms.map((p) => p.name).filter(Boolean);
+		setAssigned((prev) => Array.from(new Set([...prev, ...all])));
+	};
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-1">
-                      {perms.map((perm) => (
-                        <label key={perm.id}
-                          className="flex items-start gap-2 cursor-pointer bg-white dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-                        >
-                          <input type="checkbox" checked={assigned.includes(perm.name)} onChange={() => togglePermission(perm.name)}/>
-                          <div>
-                            <div className="text-sm font-semibold">{perm.name}</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400"> {perm.description} </div>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            );
-          })}
+	const selectNone = (perms) => {
+		const all = perms.map((p) => p.name).filter(Boolean);
+		setAssigned((prev) => prev.filter((p) => !all.includes(p)));
+	};
 
-          <FieldError message={localErrors.assigned} resetKey={errorKey} />
-        </div>
+	const handleUpdate = async () => {
+		clearMessage();
 
-        <FlashMessage message={message} />
+		const rules = {
+			roleName: { required: true, message: "Ingresa un nombre de rol valido" },
+			assigned: { required: true, message: "Selecciona al menos un permiso." },
+		};
 
-        <div className="mt-6 flex justify-end">
-          <button onClick={handleUpdate} disabled={saving}
-            className={`px-5 py-2 rounded-lg text-white transition shadow-sm ${saving ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
-          >
-            {saving ? "Guardando..." : "Guardar cambios"}
-          </button>
-        </div>
-      </section>
-    </div>
-  );
+		const isValid = validateFields(rules, { roleName, assigned });
+		if (!isValid) return;
+
+		setSaving(true);
+		try {
+			await privateInstance.put(`/roles/${id}`, {
+				permissions: assigned,
+			});
+
+			await refreshPermissions();
+			navigate("/admin/roles");
+		} catch (err) {
+			console.error("Error al actualizar rol:", err);
+
+			if (err.response?.status === 422) {
+				const errs = err.response.data?.errors;
+				if (errs) {
+					const first = Object.values(errs)[0]?.[0];
+					showMessage(first || "Revisa los campos del formulario.", "error");
+				} else {
+					showMessage(
+						err.response.data?.message || "No se pudo actualizar el rol.",
+						"error",
+					);
+				}
+			} else if (err.response?.status === 403) {
+				showMessage(
+					err.response.data?.message || "No tienes permiso para esta acción.",
+					"error",
+				);
+			} else {
+				showMessage("No se pudo actualizar el rol. Intenta de nuevo.", "error");
+			}
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	if (loading) {
+		return (
+			<div className="p-6 text-center text-slate-500 dark:text-slate-300">
+				{" "}
+				Cargando formulario...{" "}
+			</div>
+		);
+	}
+
+	if (loadingMe) return null;
+	if (denied) return <PermissionDenied />;
+
+	return (
+		<div className="min-h-screen w-full px-6 py-6 bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200">
+			<header className="flex items-center justify-between mb-6">
+				<h1 className="text-2xl font-bold flex items-center gap-2 mx-1">
+					Editar Rol
+				</h1>
+				<ExitConfirm to="/admin/roles" />
+			</header>
+
+			<section className="bg-white dark:bg-slate-900 rounded-xl shadow border border-slate-200 dark:border-slate-800 p-6">
+				<div className="mb-6">
+					<label htmlFor="" className="font-semibold text-sm">
+						Nombre del rol
+					</label>
+					<input
+						type="text"
+						disabled
+						value={roleName}
+						onChange={(e) => setRoleName(e.target.value)}
+						placeholder="Ej. supervisor_operaciones"
+						className="mt-1 w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-600 outline-none cursor-not-allowed"
+					/>
+					<FieldError message={localErrors.roleName} resetKey={errorKey} />
+				</div>
+
+				{isAdmin && (
+					<div className="mb-4">
+						<label htmlFor="" className="font-semibold text-sm">
+							Ventanas / Capas
+						</label>
+
+						<div className="mt-2 flex flex-wrap gap-2">
+							{LAYERS.map((l) => {
+								const active = l.key === layerKey;
+
+								return (
+									<button
+										key={l.key}
+										type="button"
+										onClick={() => setLayerKey(l.key)}
+										className={[
+											"px-3 py-1.5 rounded-lg border text-sm font-semibold transition",
+											active
+												? "bg-blue-600 text-white border-blue-600"
+												: "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700",
+										].join(" ")}
+									>
+										{l.label}
+									</button>
+								);
+							})}
+						</div>
+
+						<div className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+							Mostrando permisos de: <b>{selectedLayer.label}</b>
+						</div>
+					</div>
+				)}
+
+				<div className="space-y-4 pr-1 overflow-visible">
+					{Object.entries(grouped).map(([module, perms]) => {
+						const isOpen = openModules[module] ?? true;
+
+						return (
+							<div
+								key={module}
+								className="border border-slate-200 dark:border-slate-800 rounded-lg p-4 bg-slate-50/60 dark:bg-slate-900/60"
+							>
+								<button
+									type="button"
+									onClick={() => toggleModule(module)}
+									className="w-full flex items-center justify-between px-3 py-2 rounded-md border border-slate-300/70 dark:border-slate-700
+                  					bg-slate-200 text-slate-800 dark:bg-slate-900/80 dark:text-slate-50 text-left font-semibold text-sm md:text-base capitalize hover:bg-slate-300 dark:hover:bg-slate-800/80 transition"
+								>
+									<span>
+										{module}{" "}
+										<span className="text-xs font-normal opacity-70">
+											{" "}
+											({perms.length}){" "}
+										</span>
+									</span>
+									{isOpen ? (
+										<FiChevronUp className="text-sm" />
+									) : (
+										<FiChevronDown className="text-sm" />
+									)}
+								</button>
+
+								{isOpen && (
+									<>
+										<div className="flex justify-end gap-2 text-xs mt-3 mb-2">
+											<button
+												type="button"
+												onClick={() => selectAll(perms)}
+												className="px-2 py-1 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700"
+											>
+												Todos
+											</button>
+											<button
+												type="button"
+												onClick={() => selectNone(perms)}
+												className="px-2 py-1 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700"
+											>
+												Ninguno
+											</button>
+										</div>
+
+										<div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-1">
+											{perms.map((perm) => (
+												<label
+													key={perm.id}
+													className="flex items-start gap-2 cursor-pointer bg-white dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+												>
+													<input
+														type="checkbox"
+														checked={assigned.includes(perm.name)}
+														onChange={() => togglePermission(perm.name)}
+													/>
+													<div>
+														<div className="text-sm font-semibold">
+															{perm.name}
+														</div>
+														<div className="text-xs text-slate-500 dark:text-slate-400">
+															{" "}
+															{perm.description}{" "}
+														</div>
+													</div>
+												</label>
+											))}
+										</div>
+									</>
+								)}
+							</div>
+						);
+					})}
+
+					<FieldError message={localErrors.assigned} resetKey={errorKey} />
+				</div>
+
+				<FlashMessage message={message} />
+
+				<div className="mt-6 flex justify-end">
+					<button
+						type="button"
+						onClick={handleUpdate}
+						disabled={saving}
+						className={`px-5 py-2 rounded-lg text-white transition shadow-sm ${saving ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
+					>
+						{saving ? "Guardando..." : "Guardar cambios"}
+					</button>
+				</div>
+			</section>
+		</div>
+	);
 }

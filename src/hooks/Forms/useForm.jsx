@@ -1,30 +1,29 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function useFormPage(loadFn) {
-  const [loadingPage, setLoadingPage] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+	const [loadingPage, setLoadingPage] = useState(true);
+	const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
+	const loadRef = useRef(loadFn);
+	loadRef.current = loadFn;
 
-    const run = async () => {
-      try {
-        if (loadFn) await loadFn();
-      } finally {
-        if (mounted) setLoadingPage(false);
-      }
-    };
+	useEffect(() => {
+		let mounted = true;
 
-    run();
+		const run = async () => {
+			try {
+				if (loadRef.current) await loadRef.current();
+			} finally {
+				if (mounted) setLoadingPage(false);
+			}
+		};
 
-    return () => {
-      mounted = false;
-    };
-  }, []);
+		run();
 
-  return {
-    loadingPage,
-    submitting,
-    setSubmitting,
-  };
+		return () => {
+			mounted = false;
+		};
+	}, []);
+
+	return { loadingPage, submitting, setSubmitting };
 }
