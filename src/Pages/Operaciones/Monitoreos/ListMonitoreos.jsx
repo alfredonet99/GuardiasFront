@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { privateInstance } from "../../../api/axios";
 import {
 	IconCreate,
@@ -13,6 +13,11 @@ import TableStateMessage from "../../../components/UI/Loaders/TableStateMessage"
 import Paginator from "../../../components/UI/Paginacion/PaginationUI";
 import SearchInputLong from "../../../components/UI/Search/SearchLong";
 import useDelayedRequestLoading from "../../../hooks/DelayRequestLoad";
+import BtnDeleteSelectAll from "../../../components/UI/DeleteAll/DeleteSelect";
+import useSelectAllDesactive from "../../../hooks/SelectAllDesactive";
+import StyleCheck from "../../../components/UI/CheckBox/StyleCheck";
+import BtnCancelSelectAll from "../../../components/UI/Active/BtnCancelSelectAll";
+import ConfirmBulkActionModal from "../../../components/UI/Modals/ModalDeleteAll";
 
 function renderConcluidoLabel(row) {
 	if (row?.concluido_label) return row.concluido_label;
@@ -73,6 +78,27 @@ export default function ListMonitoreos() {
 		],
 		[],
 	);
+
+	const getMonitoreoId = useCallback((row) => row.id, []);
+
+	const canSelectMonitoreo = useCallback(() => true, []);
+
+	const {
+		selectionMode,
+		selectedCount,
+		allVisibleSelected,
+		someVisibleSelected,
+		selectableCount,
+		toggleSelectionMode,
+		isSelected,
+		toggleOne,
+		toggleAllVisible,
+	} = useSelectAllDesactive({
+		items,
+		getId: getMonitoreoId,
+		canSelect: canSelectMonitoreo,
+	});
+
 
 	useEffect(() => {
 		setErrorLocal(null);
@@ -138,14 +164,14 @@ export default function ListMonitoreos() {
 				prev.map((m) =>
 					m.id === monitoreoId
 						? {
-								...m,
-								...(updated || {}),
-								concluido: updated?.concluido ?? nextStatus,
-								concluido_label:
-									payload.status_label ??
-									updated?.concluido_label ??
-									m.concluido_label,
-							}
+							...m,
+							...(updated || {}),
+							concluido: updated?.concluido ?? nextStatus,
+							concluido_label:
+								payload.status_label ??
+								updated?.concluido_label ??
+								m.concluido_label,
+						}
 						: m,
 				),
 			);
@@ -153,8 +179,8 @@ export default function ListMonitoreos() {
 			console.error("[ListMonitoreos] update status error:", e);
 			setErrorLocal(
 				e?.response?.data?.message ||
-					e?.message ||
-					"No se pudo actualizar el estatus.",
+				e?.message ||
+				"No se pudo actualizar el estatus.",
 			);
 		} finally {
 			setStatusLoadingId(null);
@@ -178,6 +204,91 @@ export default function ListMonitoreos() {
 		return "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700";
 	}
 
+	const MonitoreoTt = meta.total ?? 0;
+	const MonitPerPage = meta.per_page ?? 100;
+	const MonitResult = MonitoreoTt === 0 ? 0 : (page - 1) * MonitPerPage + 1;
+	const MonitTo = Math.min(page * MonitPerPage, MonitoreoTt)
+
+	const [showDeleteModal, setShowDeleteModal] = useState(false);
+	const [deletingSelected, setDeletingSelected] = useState(false);
+
+	const handleDeleteSelectClick = () => {
+		if (!selectionMode) {
+			toggleSelectionMode();
+			return;
+		}
+
+		if (selectedCount <= 0) {
+			return;
+		}
+
+		setShowDeleteModal(true);
+	};
+
+	const handleConfirmDeleteSelected = async () => {
+		const selectedIds = items
+			.filter((row) => isSelected(row))
+			.map((row) => row.id);
+
+		if (selectedIds.length === 0) return;
+
+		try {
+			setDeletingSelected(true);
+			setErrorLocal(null);
+
+			const results = await Promise.allSettled(
+				selectedIds.map((id) =>
+					privateInstance.delete(`/operaciones/monitoreos/delete/${id}`),
+				),
+			);
+
+			const deletedIds = results
+				.map((result, index) =>
+					result.status === "fulfilled" ? selectedIds[index] : null,
+				)
+				.filter(Boolean);
+
+			const failedResults = results.filter(
+				(result) => result.status === "rejected",
+			);
+
+			if (deletedIds.length > 0) {
+				setItems((prev) =>
+					prev.filter((row) => !deletedIds.includes(row.id)),
+				);
+
+				setMeta((prev) => ({
+					...prev,
+					total: Math.max((prev.total ?? 0) - deletedIds.length, 0),
+				}));
+			}
+
+			setShowDeleteModal(false);
+
+			if (selectionMode) {
+				toggleSelectionMode();
+			}
+
+			if (failedResults.length > 0) {
+				const firstError =
+					failedResults[0]?.reason?.response?.data?.message ||
+					`Se eliminaron ${deletedIds.length} de ${selectedIds.length} monitoreos.`;
+
+				setErrorLocal(firstError);
+			}
+		} catch (error) {
+			console.error("[ListMonitoreos] delete selected error:", error);
+
+			setErrorLocal(
+				error?.response?.data?.message ||
+				error?.message ||
+				"No se pudieron eliminar los monitoreos seleccionados.",
+			);
+		} finally {
+			setDeletingSelected(false);
+		}
+	};
+
 	return (
 		<div className="min-h-screen w-full bg-slate-100 dark:bg-slate-950 px-6 py-6 text-slate-800 dark:text-slate-200">
 			<header className="mb-6 flex items-center justify-between">
@@ -196,7 +307,9 @@ export default function ListMonitoreos() {
 								onDebouncedChange={(val) => {
 									const next = (val ?? "").trim();
 									const prev = (search ?? "").trim();
+
 									if (next === prev) return;
+
 									setSearch(next);
 									setPage(1);
 								}}
@@ -205,9 +318,28 @@ export default function ListMonitoreos() {
 						</div>
 
 						<div className="flex items-center gap-3">
-							<span className="text-xs text-slate-500 dark:text-slate-400">
-								{meta?.total ?? 0} monitoreo(s)
+							<span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+								<span>Mostrando</span>
+
+								<span className="text-slate-900 dark:text-slate-100">
+									{MonitResult}
+								</span>
+
+								<span>-</span>
+
+								<span className="text-slate-900 dark:text-slate-100">
+									{MonitTo}
+								</span>
+
+								<span>de</span>
+
+								<span className="text-slate-900 dark:text-slate-100">
+									{MonitoreoTt}
+								</span>
+
+								<span>monitoreos</span>
 							</span>
+
 							<IconCreate
 								label="Monitoreo"
 								to="/operaciones/monitoreos/crear"
@@ -216,17 +348,39 @@ export default function ListMonitoreos() {
 					</div>
 
 					<div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/30">
-						<UnifiedFilterSelect
-							title="Filtros"
-							placeholder="Filtrar por Site o Estatus..."
-							sections={filterSections}
-							value={filters}
-							disabled={showLoading}
-							onChange={(next) => {
-								setFilters(next);
-								setPage(1);
-							}}
-						/>
+						<div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+							<div className="min-w-0 flex-1">
+								<UnifiedFilterSelect
+									title="Filtros"
+									placeholder="Filtrar por Site o Estatus..."
+									sections={filterSections}
+									value={filters}
+									disabled={showLoading}
+									onChange={(next) => {
+										setFilters(next);
+										setPage(1);
+									}}
+								/>
+							</div>
+
+							<div className="flex flex-wrap items-center justify-end gap-2">
+								<BtnDeleteSelectAll
+									onClick={handleDeleteSelectClick}
+									active={selectionMode}
+									count={selectedCount}
+									disabled={showLoading || deletingSelected}
+									label="Eliminar Monitoreos"
+									selectingLabel="Selecciona monitoreos"
+								/>
+
+								{selectionMode && (
+									<BtnCancelSelectAll
+										onClick={toggleSelectionMode}
+										disabled={showLoading || deletingSelected}
+									/>
+								)}
+							</div>
+						</div>
 					</div>
 				</div>
 
@@ -252,6 +406,17 @@ export default function ListMonitoreos() {
 							<table className="w-full text-sm">
 								<thead className="bg-slate-100 text-xs uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">
 									<tr>
+										{selectionMode ? (
+											<th className="w-10 whitespace-nowrap px-4 py-3 text-left">
+												<StyleCheck
+													checked={allVisibleSelected}
+													indeterminate={someVisibleSelected}
+													onChange={toggleAllVisible}
+													disabled={selectableCount === 0}
+													ariaLabel="Seleccionar todos los monitoreos visibles"
+												/>
+											</th>
+										) : null}
 										<th className="whitespace-nowrap px-4 py-3 text-left">
 											ID Monitoreo
 										</th>
@@ -283,12 +448,23 @@ export default function ListMonitoreos() {
 									{items.map((row) => {
 										const concluidoNum = Number(row?.concluido);
 										const canToggle = concluidoNum === 1 || concluidoNum === 3;
+										const selected = isSelected(row);
 
 										return (
 											<tr
 												key={row.id}
-												className="hover:bg-slate-50 dark:hover:bg-slate-800/40"
+												className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 ${selected ? "bg-red-50 dark:bg-red-950/20" : ""
+													}`}
 											>
+												{selectionMode ? (
+													<td className="whitespace-nowrap px-4 py-3">
+														<StyleCheck
+															checked={selected}
+															onChange={() => toggleOne(row)}
+															ariaLabel={`Seleccionar monitoreo ${row.id}`}
+														/>
+													</td>
+												) : null}
 												<td className="whitespace-nowrap px-4 py-3 font-semibold">
 													#{row.id}
 												</td>
@@ -377,6 +553,22 @@ export default function ListMonitoreos() {
 						setPage={setPage}
 					/>
 				) : null}
+
+				<ConfirmBulkActionModal
+					isOpen={showDeleteModal}
+					title="Eliminar monitoreos"
+					count={selectedCount}
+					itemLabel="monitoreo"
+					itemLabelPlural="monitoreos"
+					confirmLabel="Eliminar monitoreos"
+					cancelLabel="Cancelar"
+					loading={deletingSelected}
+					loadingLabel="Eliminando..."
+					message={`Estás a punto de eliminar ${selectedCount} monitoreo${selectedCount === 1 ? "" : "s"
+						}.\nEsta acción no se puede deshacer.`}
+					onCancel={() => setShowDeleteModal(false)}
+					onConfirm={handleConfirmDeleteSelected}
+				/>
 			</section>
 		</div>
 	);
