@@ -1,6 +1,5 @@
 // Pages/Operaciones/Guardias/EditGuardias.jsx
 
-import emailjs from "@emailjs/browser";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ExitConfirm from "../../../components/UI/ConfirmBtn/ExitConfirm";
@@ -10,30 +9,7 @@ import ResumeGuard from "../../../components/UI/GuardiasClose/ResumeGuard";
 import TicketGuardiaEdit from "../../../components/UI/GuardiasClose/TicketsEditGuard";
 import useGuardiaCloseData from "../../../hooks/Guardia/getcloseGuard";
 import useGuardMonitData from "../../../hooks/Guardia/getMonitGuard";
-import { buildGuardiaCloseEmailHtml } from "../../../utils/emailCloseGuard";
-
-function getBytesSize(value) {
-	const text = typeof value === "string" ? value : JSON.stringify(value ?? {});
-	return new TextEncoder().encode(text).length;
-}
-
-function formatBytes(bytes) {
-	if (bytes < 1024) return `${bytes} B`;
-	return `${(bytes / 1024).toFixed(2)} KB`;
-}
-
-function debugEmailPayloadSize(label, data) {
-	const bytes = getBytesSize(data);
-	const kb = bytes / 1024;
-
-	console.log(`[EMAIL SIZE] ${label}: ${bytes} bytes (${kb.toFixed(2)} KB)`);
-
-	return {
-		bytes,
-		kb,
-		ok: kb < 50,
-	};
-}
+import { privateInstance } from "../../../api/axios";
 
 export default function EditGuardias() {
 	const navigate = useNavigate();
@@ -221,10 +197,7 @@ export default function EditGuardias() {
 
 	const sendCloseEmail = useCallback(
 		async (ticketsSnap) => {
-			const SERVICE_ID = "service_azgc7ip";
-			const TEMPLATE_ID = "template_2oyiqrg";
-			const PUBLIC_KEY = "FE27h7MxfjjlYRJVI";
-			const TO_EMAIL = "operationsstratosphere@stratospherecorp.com";
+			const tag = `[EMAIL_GUARDIA_BACKEND:${guardia?.id ?? "sin-id"}]`;
 
 			const safeSnap = ticketsSnap ?? {
 				pending: [],
@@ -233,63 +206,74 @@ export default function EditGuardias() {
 				counters: { total: 0, pending: 0, concluded: 0, newTickets: 0 },
 			};
 
-			const html_body = buildGuardiaCloseEmailHtml({
-				guardia,
-				now: new Date(),
-				okItemsVeeam: okItemsBySite.veeam,
-				pendingVeeamRows: pendingRowsBySite.veeam,
-				ticketsResume: {
-					pending: safeSnap.pending,
-					concludedByUser: safeSnap.concludedByUser,
-					counters: safeSnap.counters,
+			const payload = {
+				guardia: {
+					id: guardia?.id ?? id,
+					user_name: guardia?.user?.name ?? guardia?.user_name ?? "",
+					dateInit: guardia?.dateInit ?? null,
 				},
+
+				okItemsVeeam: okItemsBySite.veeam ?? [],
+				pendingVeeamRows: pendingRowsBySite.veeam ?? [],
+
+				ticketsResume: {
+					pending: safeSnap.pending ?? [],
+					concludedByUser: safeSnap.concludedByUser ?? {},
+					counters: safeSnap.counters ?? {
+						total: 0,
+						pending: 0,
+						concluded: 0,
+						newTickets: 0,
+					},
+				},
+			};
+
+			console.info(`${tag} ENVIANDO JSON AL BACKEND`, {
+				guardiaId: payload.guardia.id,
+				okItemsVeeam: payload.okItemsVeeam.length,
+				pendingVeeamRows: payload.pendingVeeamRows.length,
+				ticketsPending: payload.ticketsResume.pending.length,
+				concludedUsers: Object.keys(payload.ticketsResume.concludedByUser)
+					.length,
+				counters: payload.ticketsResume.counters,
 			});
 
-			const subject = `Cierre de Guardia #${guardia?.id ?? "—"}`;
-
-			const templateParams = {
-				to_email: TO_EMAIL,
-				subject,
-				guardia_id: String(guardia?.id ?? ""),
-				user_name: String(guardia?.user?.name ?? guardia?.user_name ?? ""),
-				html_body,
-			};
-
-			const payloadPreview = {
-				service_id: SERVICE_ID,
-				template_id: TEMPLATE_ID,
-				template_params: templateParams,
-			};
-
-			debugEmailPayloadSize("html_body", html_body);
-			debugEmailPayloadSize("templateParams", templateParams);
-			const result = debugEmailPayloadSize("payload", payloadPreview);
-
-			// margen de seguridad
-			if (result.kb >= 45) {
-				console.warn(
-					`⚠️ El correo pesa ${result.kb.toFixed(2)} KB y puede exceder el límite de EmailJS.`,
+			try {
+				const res = await privateInstance.post(
+					`operaciones/mail/guardias/${payload.guardia.id}/send-close-email`,
+					payload,
 				);
 
+				const data = res.data;
+
+				console.info(`${tag} CORREO ENVIADO DESDE BACKEND`, data);
+
 				return {
-					ok: false,
-					message: `El correo pesa ${result.kb.toFixed(2)} KB y puede exceder el límite permitido por EmailJS.`,
+					ok: true,
+					message: data?.message ?? "Correo enviado correctamente.",
+					messageId: data?.messageId ?? null,
 				};
-			}
+			} catch (error) {
+				const status = error.response?.status;
+				const data = error.response?.data;
 
-			try {
-				await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+				console.error(`${tag} ERROR BACKEND AXIOS`, {
+					status,
+					data,
+					message: error?.message,
+				});
 
-				return { ok: true };
-			} catch (e) {
-				console.error("❌ EmailJS error:", e);
 				return {
 					ok: false,
-					message: e?.text || e?.message || "Error enviando correo.",
+					message:
+						data?.message ||
+						(status
+							? `Error enviando correo desde backend. HTTP ${status}`
+							: "Error conectando con backend."),
 				};
 			}
 		},
-		[guardia, okItemsBySite.veeam, pendingRowsBySite.veeam],
+		[guardia, id, okItemsBySite.veeam, pendingRowsBySite.veeam],
 	);
 
 	const handleCloseAll = useCallback(async () => {
