@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { logout } from "../../api/auth";
 import { useUser } from "../context/userContext";
+import { devLog } from "../../utils/devLogs";
 
 export default function Profile() {
 	const [open, setOpen] = useState(false);
@@ -9,10 +10,10 @@ export default function Profile() {
 	const { user } = useUser();
 
 	useEffect(() => {
-		console.log("🟦[PROFILE] user from context:", user);
-		console.log("🟦[PROFILE] roles:", user?.roles);
-		console.log("🟦[PROFILE] area:", user?.area);
-		console.log("🟦[PROFILE] area_id:", user?.area_id);
+		devLog("🟦[PROFILE] user from context:", user);
+		devLog("🟦[PROFILE] roles:", user?.roles);
+		devLog("🟦[PROFILE] area:", user?.area);
+		devLog("🟦[PROFILE] area_id:", user?.area_id);
 	}, [user]);
 
 	const avatar = user?.avatar

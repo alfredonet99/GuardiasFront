@@ -13,6 +13,7 @@ import ToggleUserStatusButton from "../Active/BtnActive";
 import DeleteConfirm from "../ConfirmBtn/DeleteConfirm";
 import Paginator from "../Paginacion/PaginationUI";
 import SearchInputLong from "../Search/SearchLong";
+import { devError } from "../../../utils/devLogs";
 
 export default function TableUsers() {
 	const [query, setQuery] = useState("");
@@ -51,7 +52,7 @@ export default function TableUsers() {
 					per_page: res.data.per_page ?? 0,
 				});
 			} catch (err) {
-				console.error("Error al cargar usuarios:", err);
+				devError("Error al cargar usuarios:", err);
 			} finally {
 				setLoading(false);
 			}
@@ -83,7 +84,7 @@ export default function TableUsers() {
 				prev.map((x) => (x.id === u.id ? { ...x, active: activeFromApi } : x)),
 			);
 		} catch (err) {
-			console.error("Error al actualizar estado:", err);
+			devError("Error al actualizar estado:", err);
 
 			setUsers((prev) =>
 				prev.map((x) => (x.id === u.id ? { ...x, active: !nextActive } : x)),
@@ -108,7 +109,7 @@ export default function TableUsers() {
 			setUsers((prev) => prev.filter((x) => x.id !== u.id));
 			setMeta((m) => ({ ...m, total: Math.max(0, (m.total || 0) - 1) }));
 		} catch (err) {
-			console.error("Error al eliminar usuario:", err);
+			devError("Error al eliminar usuario:", err);
 		}
 	};
 
@@ -130,7 +131,7 @@ export default function TableUsers() {
 				<IconCreate to="/admin/users/crear-usuario" label="Usuario" />
 			</div>
 
-			<div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+			<div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
 				{loading ? (
 					<div className="p-6 text-center text-slate-500 dark:text-slate-400">
 						{" "}
@@ -142,17 +143,19 @@ export default function TableUsers() {
 						No se encontraron usuarios{" "}
 					</div>
 				) : (
-					<table className="min-w-full text-left">
-						<thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-sm">
+					<table className="min-w-[760px] md:min-w-full text-left">
+						<thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-xs md:text-sm">
 							<tr>
-								<th className="px-4 py-3">Foto</th>
-								<th className="px-4 py-3">Nombre</th>
-								<th className="px-4 py-3">Correo</th>
-								<th className="px-4 py-3">Rol</th>
-								<th className="px-4 py-3">Área</th>
-								<th className="px-4 py-3">Estado</th>
-								<th className="px-4 py-3">Ultimo Acceso</th>
-								<th className="px-4 py-3 text-center">Acciones</th>
+								<th className="hidden md:table-cell px-4 py-3">Foto</th>
+								<th className="px-2 md:px-4 py-3">Nombre</th>
+								<th className="px-2 md:px-4 py-3">Correo</th>
+								<th className="hidden md:table-cell px-4 py-3">Rol</th>
+								<th className="hidden md:table-cell px-4 py-3">Área</th>
+								<th className="hidden md:table-cell px-4 py-3">Estado</th>
+								<th className="hidden md:table-cell px-4 py-3">
+									Ultimo Acceso
+								</th>
+								<th className="px-2 md:px-4 py-3 text-center">Acciones</th>
 							</tr>
 						</thead>
 
@@ -166,7 +169,7 @@ export default function TableUsers() {
 										key={u.id}
 										className="border-t border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition"
 									>
-										<td className="px-4 py-3">
+										<td className="hidden md:table-cell px-4 py-3">
 											<div className="w-10 h-10 rounded-full overflow-hidden bg-slate-300 dark:bg-slate-700 flex items-center justify-center">
 												{u.avatar ? (
 													<img
@@ -176,44 +179,51 @@ export default function TableUsers() {
 													/>
 												) : (
 													<span className="text-xs text-slate-600 dark:text-slate-400">
-														{" "}
-														Sin foto{" "}
+														Sin foto
 													</span>
 												)}
 											</div>
 										</td>
-
-										<td className="px-4 py-3">{u.name}</td>
-										<td className="px-4 py-3">{u.email}</td>
-
-										<td className="px-4 py-3">
-											<span className="px-3 py-1 rounded-full text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-												{" "}
-												{getRoleLabel(u)}{" "}
-											</span>
+										<td className="px-2 md:px-4 py-3">
+											<div className="max-w-[120px] md:max-w-none truncate">
+												{u.name}
+											</div>
 										</td>
 
-										<td className="px-4 py-3">
-											<span className="px-3 py-1 rounded-full text-xs bg-slate-100 dark:bg-slate-800">
+										<td className="px-2 md:px-4 py-3">
+											<div className="max-w-[150px] md:max-w-none truncate">
+												{u.email}
+											</div>
+										</td>
+
+										<td className="hidden md:table-cell px-4 py-3">
+											<span className="py-1">{getRoleLabel(u)}</span>
+										</td>
+
+										<td className="hidden md:table-cell px-4 py-3">
+											<span className="py-1 ">
 												{u.area?.name ?? "Administrador"}
 											</span>
 										</td>
 
-										<td className="px-4 py-3">
+										<td className="hidden md:table-cell px-4 py-3">
 											<span
-												className={`px-3 py-1 rounded-full text-xs ${u.active ? "bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-300" : "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300"}`}
+												className={`px-3 py-1 rounded-full ${
+													u.active
+														? "bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-300"
+														: "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300"
+												}`}
 											>
 												{u.active ? "Activo" : "Inactivo"}
 											</span>
 										</td>
 
-										<td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-											{" "}
-											{formatDateTime(u.last_login_at)}{" "}
+										<td className="hidden md:table-cell px-4 py-3 text-slate-600 dark:text-slate-300">
+											{formatDateTime(u.last_login_at)}
 										</td>
 
-										<td className="px-4 py-3">
-											<div className="flex justify-center gap-2">
+										<td className="px-2 md:px-4 py-3">
+											<div className="actions-responsive-grid">
 												{(isAdmin || !targetIsAdmin) && (
 													<IconEdit to={`/admin/users/${u.id}/editar`} />
 												)}

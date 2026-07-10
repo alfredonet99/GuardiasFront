@@ -16,7 +16,12 @@ export const OPERACIONES_CLIENT_ITEMS = [
 	},
 ];
 
-export default function OperacionesClient({ isExpanded, isAdminWrap = false }) {
+export default function OperacionesClient({
+	isExpanded,
+	isAdminWrap = false,
+	onItemClick,
+	showChevron = true,
+}) {
 	const [open, setOpen] = useState(false);
 	const { canView } = useMenuVisibilityFromRoutes();
 
@@ -53,7 +58,7 @@ export default function OperacionesClient({ isExpanded, isAdminWrap = false }) {
 					</span>
 				</span>
 
-				{isExpanded && (
+				{isExpanded && showChevron && (
 					<svg
 						aria-hidden="true"
 						focusable="false"
@@ -82,6 +87,7 @@ export default function OperacionesClient({ isExpanded, isAdminWrap = false }) {
 						<NavLink
 							key={item.to}
 							to={item.to}
+							onClick={onItemClick}
 							className={({ isActive }) =>
 								`mt-2 ${itemBase} ${isActive ? itemActive : itemInactive}`
 							}

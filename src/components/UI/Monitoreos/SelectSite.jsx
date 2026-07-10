@@ -4,6 +4,7 @@ import { privateInstance } from "../../../api/axios";
 import { useAutoClearErrors } from "../../../hooks/Errors/clearErrorMessage";
 import { useFieldErrors } from "../../../hooks/Errors/MessageInputs";
 import FieldError from "../Errors/ElementsErrors";
+import { devError } from "../../../utils/devLogs";
 
 export default function SelectSiteUI({
 	onData,
@@ -76,7 +77,7 @@ export default function SelectSiteUI({
 
 			onData?.(data);
 		} catch (err) {
-			console.error(err);
+			devError("Error cargando clientes Veeam:", err);
 			const msg =
 				err?.response?.data?.message ??
 				"Error cargando clientes Veeam. Intenta nuevamente.";

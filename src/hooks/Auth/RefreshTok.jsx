@@ -2,6 +2,7 @@
 import { useEffect, useRef } from "react";
 import { privateInstance } from "../../api/axios";
 import { setSessionExpired } from "../../services/auth";
+import { devLog } from "../../utils/devLogs";
 
 const ACTIVITY_WINDOW_SECONDS = 180;
 const RENEW_THRESHOLD_SECONDS = 60;
@@ -13,11 +14,11 @@ export function useTokenRefresh({ isLeader }) {
 
 	useEffect(() => {
 		if (!isLeader) {
-			if (DEBUG) console.log("[refresh] no soy líder, no refresco");
+			if (DEBUG) devLog("[refresh] no soy líder, no refresco");
 			return;
 		}
 
-		if (DEBUG) console.log("[refresh] hook montado ✅ (leader)");
+		if (DEBUG) devLog("[refresh] hook montado ✅ (leader)");
 
 		const clearTimer = () => {
 			if (timerRef.current) {
@@ -38,13 +39,13 @@ export function useTokenRefresh({ isLeader }) {
 
 			const inactive = Math.floor((Date.now() - parseInt(lastStr, 10)) / 1000);
 			const ok = inactive <= ACTIVITY_WINDOW_SECONDS;
-			if (DEBUG) console.log(`[refresh] inactive=${inactive}s active=${ok}`);
+			if (DEBUG) devLog(`[refresh] inactive=${inactive}s active=${ok}`);
 			return ok;
 		};
 
 		const tick = async () => {
 			if (localStorage.getItem("sessionExpired") === "1") {
-				if (DEBUG) console.log("[refresh] sessionExpired=1, detengo");
+				if (DEBUG) devLog("[refresh] sessionExpired=1, detengo");
 				clearTimer();
 				return;
 			}
@@ -56,7 +57,7 @@ export function useTokenRefresh({ isLeader }) {
 			const secondsLeft = Math.floor(
 				(parseInt(expStr, 10) - Date.now()) / 1000,
 			);
-			if (DEBUG) console.log(`[refresh] secondsLeft=${secondsLeft}`);
+			if (DEBUG) devLog(`[refresh] secondsLeft=${secondsLeft}`);
 
 			if (secondsLeft <= 0) return;
 
@@ -67,9 +68,7 @@ export function useTokenRefresh({ isLeader }) {
 
 			if (!isActiveNow()) {
 				if (DEBUG)
-					console.log(
-						"[refresh] inactivo en ventana → me duermo hasta actividad",
-					);
+					devLog("[refresh] inactivo en ventana → me duermo hasta actividad");
 				clearTimer();
 				return;
 			}
@@ -81,14 +80,14 @@ export function useTokenRefresh({ isLeader }) {
 
 			inFlightRef.current = true;
 			try {
-				if (DEBUG) console.log("[refresh] intentando renovar…");
+				if (DEBUG) devLog("[refresh] intentando renovar…");
 				const { data } = await privateInstance.post("/auth/refresh");
 
 				localStorage.setItem("token", data.token);
 				const newExp = Date.now() + data.expires_in * 1000;
 				localStorage.setItem("token_expires_at", newExp.toString());
 
-				if (DEBUG) console.log("[refresh] renovado ✅, nuevo exp=", newExp);
+				if (DEBUG) devLog("[refresh] renovado ✅, nuevo exp=", newExp);
 
 				const secondsLeft2 = Math.floor((newExp - Date.now()) / 1000);
 				schedule(
@@ -110,7 +109,7 @@ export function useTokenRefresh({ isLeader }) {
 
 		const wakeOnActivity = () => {
 			if (!timerRef.current && localStorage.getItem("token")) {
-				if (DEBUG) console.log("[refresh] actividad → despierto refresh");
+				if (DEBUG) devLog("[refresh] actividad → despierto refresh");
 				schedule(0);
 			}
 		};
@@ -133,7 +132,7 @@ export function useTokenRefresh({ isLeader }) {
 		return () => {
 			window.removeEventListener("auth:activity", wakeOnActivity);
 			clearTimer();
-			if (DEBUG) console.log("[refresh] hook desmontado 🧹");
+			if (DEBUG) devLog("[refresh] hook desmontado 🧹");
 		};
 	}, [isLeader]);
 }

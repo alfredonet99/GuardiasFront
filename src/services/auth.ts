@@ -1,5 +1,6 @@
 import { privateInstance, publicInstance } from "../api/axios";
 import type { User } from "../types/user";
+import { devLog } from "../utils/devLogs";
 
 export interface Credentials {
 	email: string;
@@ -67,7 +68,7 @@ export async function loginApi(payload: Credentials): Promise<LoginResponse> {
 	localStorage.setItem("activity_seen", "0");
 	localStorage.removeItem("last_activity");
 
-	console.log(
+	devLog(
 		`✅ Login OK. El token expira a las: ${new Date(expiresAt).toLocaleTimeString()}`,
 	);
 

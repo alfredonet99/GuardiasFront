@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { privateInstance } from "../../api/axios";
+import { devLog } from "../../utils/devLogs";
 
 export default function useGuardiaCloseData(guardiaIdParam = null) {
 	const [booting, setBooting] = useState(true);
@@ -271,9 +272,9 @@ export default function useGuardiaCloseData(guardiaIdParam = null) {
 	}, [tickets, guardia]);
 
 	useEffect(() => {
-		console.log("[useGuardiaCloseData] guardia =>", guardia);
-		console.log("[useGuardiaCloseData] tickets =>", tickets);
-		console.log("[useGuardiaCloseData] booting/saving =>", { booting, saving });
+		devLog("[useGuardiaCloseData] guardia =>", guardia);
+		devLog("[useGuardiaCloseData] tickets =>", tickets);
+		devLog("[useGuardiaCloseData] booting/saving =>", { booting, saving });
 	}, [guardia, tickets, booting, saving]);
 
 	return {

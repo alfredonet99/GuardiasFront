@@ -14,6 +14,7 @@ import BackBtnSection from "../../icons/BtnBackSection";
 import TicketNumeric from "../Tickets/TicketNumeric";
 import WordCountInput from "../WordCount/InputCount";
 import WordCountTextarea from "../WordCount/TextAreaCount";
+import { devLog } from "../../../utils/devLogs";
 
 const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 	{ onBackToMonitoreos },
@@ -306,9 +307,12 @@ const TicketGuardiaEdit = forwardRef(function TicketGuardiaEdit(
 	}, [tickets, guardia]);
 
 	const submitClose = useCallback(async () => {
-		console.log("[TicketGuardiaEdit] payload preview =>", closePayloadPreview);
+		devLog("[TicketGuardiaEdit] payload preview =>", closePayloadPreview);
+
 		const res = await closeGuardia();
-		console.log("[TicketGuardiaEdit] result =>", res);
+
+		devLog("[TicketGuardiaEdit] result =>", res);
+
 		return res;
 	}, [closePayloadPreview, closeGuardia]);
 

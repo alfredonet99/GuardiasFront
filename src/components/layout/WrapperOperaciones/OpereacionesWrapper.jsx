@@ -13,8 +13,26 @@ function getCachedUser() {
 	}
 }
 
-export default function OperacionesAdminWrapper({ isExpanded }) {
-	const [open, setOpen] = useState(false);
+export default function OperacionesAdminWrapper({
+	isExpanded,
+	onItemClick,
+	showChevron = true,
+	isOpen,
+	onToggleOpen,
+}) {
+	const [internalOpen, setInternalOpen] = useState(false);
+
+	const open = typeof isOpen === "boolean" ? isOpen : internalOpen;
+
+	const handleToggle = () => {
+		if (onToggleOpen) {
+			onToggleOpen();
+			return;
+		}
+
+		setInternalOpen((v) => !v);
+	};
+
 	const { canView } = useMenuVisibilityFromRoutes();
 
 	const u = getCachedUser();
@@ -34,7 +52,7 @@ export default function OperacionesAdminWrapper({ isExpanded }) {
 			<div className="w-full">
 				<button
 					type="button"
-					onClick={() => setOpen((v) => !v)}
+					onClick={handleToggle}
 					className="flex items-center px-1.5 py-2 text-white hover:bg-blue-700 dark:hover:bg-slate-700 rounded w-full"
 					title={isExpanded ? "" : "Operaciones"}
 				>
@@ -50,7 +68,7 @@ export default function OperacionesAdminWrapper({ isExpanded }) {
 						</span>
 					</span>
 
-					{isExpanded && (
+					{isExpanded && showChevron && (
 						<svg
 							aria-hidden="true"
 							focusable="false"
@@ -69,13 +87,26 @@ export default function OperacionesAdminWrapper({ isExpanded }) {
 				{isExpanded && (
 					<div
 						className={[
-							"overflow-hidden transition-[max-height] duration-200",
-							open ? "max-h-screen" : "max-h-0",
-							"pl-2 space-y-2",
+							"grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+							open
+								? "grid-rows-[1fr] opacity-100"
+								: "grid-rows-[0fr] opacity-0",
+							"pl-2",
 						].join(" ")}
 					>
-						<OperacionesClient isExpanded={isExpanded} isAdminWrap />
-						<OperacionesMenu isExpanded={isExpanded} />
+						<div className="min-h-0 overflow-hidden space-y-2">
+							<OperacionesClient
+								isExpanded={isExpanded}
+								isAdminWrap
+								onItemClick={onItemClick}
+								showChevron={showChevron}
+							/>
+
+							<OperacionesMenu
+								isExpanded={isExpanded}
+								onItemClick={onItemClick}
+							/>
+						</div>
 					</div>
 				)}
 			</div>
@@ -85,8 +116,14 @@ export default function OperacionesAdminWrapper({ isExpanded }) {
 	if (areaId === 1) {
 		return (
 			<div className="w-full space-y-2">
-				<OperacionesClient isExpanded={isExpanded} isAdminWrap={false} />
-				<OperacionesMenu isExpanded={isExpanded} />
+				<OperacionesClient
+					isExpanded={isExpanded}
+					isAdminWrap={false}
+					onItemClick={onItemClick}
+					showChevron={showChevron}
+				/>
+
+				<OperacionesMenu isExpanded={isExpanded} onItemClick={onItemClick} />
 			</div>
 		);
 	}

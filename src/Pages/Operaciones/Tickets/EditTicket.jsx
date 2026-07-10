@@ -13,6 +13,8 @@ import WordCountTextarea from "../../../components/UI/WordCount/TextAreaCount";
 import useFlashMessage from "../../../hooks/Errors/ErrorMessage";
 import useTriStatus from "../../../hooks/TriStatus";
 
+import { devLog } from "../../../utils/devLogs";
+
 function isFilled(value) {
 	return String(value ?? "").trim().length > 0;
 }
@@ -109,7 +111,7 @@ export default function EditTicket() {
 					return;
 				}
 
-				console.log("Ticket cargado para edición:", apiTicket);
+				devLog("Ticket cargado para edición:", apiTicket);
 
 				setTicket({
 					id: apiTicket.id,
@@ -124,7 +126,7 @@ export default function EditTicket() {
 					status: apiTicket.status ?? 1,
 				});
 
-				console.log(apiTicket.assignedUserName);
+				devLog("Ticket cargado para edición:", apiTicket);
 			} catch (e) {
 				if (!mounted) return;
 
@@ -144,7 +146,7 @@ export default function EditTicket() {
 		};
 	}, [ticketId, clearFlash, fireFlash]);
 
-	console.log("Ticket state:", ticket);
+	devLog("Ticket state:", ticket);
 
 	const handleUpdate = useCallback(async () => {
 		clearFlash();

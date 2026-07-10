@@ -1,4 +1,5 @@
 import { supabase } from "../../SupabaseCredentials";
+import { devLog, devError } from "../utils/devLogs";
 
 export async function uploadAvatar(file, userId, currentAvatarUrl) {
 	if (!file) throw new Error("No file provided");
@@ -10,24 +11,24 @@ export async function uploadAvatar(file, userId, currentAvatarUrl) {
 		const pathToDelete = currentAvatarUrl?.split("/Avatars/")[1];
 
 		if (pathToDelete) {
-			console.log("🗑️ Eliminando avatar anterior:", pathToDelete);
+			devLog("🗑️ Eliminando avatar anterior:", pathToDelete);
 
 			const { error } = await supabase.storage
 				.from("Avatars")
 				.remove([pathToDelete]);
 
 			if (error) {
-				console.warn("⚠️ No se pudo borrar avatar anterior:", error);
+				devError("⚠️ No se pudo borrar avatar anterior:", error);
 			}
 		}
 	} else {
-		console.log("ℹ️ Avatar default detectado, no se elimina");
+		devLog("ℹ️ Avatar default detectado, no se elimina");
 	}
 
 	const ext = file.name.split(".").pop();
 	const fileName = `${userId}-${Date.now()}.${ext}`;
 
-	console.log("⬆️ Subiendo nuevo avatar:", fileName);
+	devLog("⬆️ Subiendo nuevo avatar:", fileName);
 
 	const { error: uploadError } = await supabase.storage
 		.from("Avatars")
@@ -37,13 +38,13 @@ export async function uploadAvatar(file, userId, currentAvatarUrl) {
 		});
 
 	if (uploadError) {
-		console.error("❌ Error upload:", uploadError);
+		devError("❌ Error upload:", uploadError);
 		throw uploadError;
 	}
 
 	const { data } = supabase.storage.from("Avatars").getPublicUrl(fileName);
 
-	console.log("✅ Nuevo avatar URL:", data.publicUrl);
+	devLog("✅ Nuevo avatar URL:", data.publicUrl);
 
 	return data.publicUrl;
 }

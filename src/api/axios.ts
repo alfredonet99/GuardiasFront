@@ -1,5 +1,6 @@
 import axios from "axios";
 import { baseUrl } from "../utils/baseUrl";
+import { devWarn } from "../utils/devLogs";
 
 // Público (login, registro, etc.)
 const publicInstance = axios.create({
@@ -37,7 +38,7 @@ privateInstance.interceptors.response.use(
 		// ✅ 401: token inválido/expirado
 		if (status === 401 && !authHandled) {
 			authHandled = true;
-			console.warn("🔐 401 detectado por axios. Lo manejará el hook/modal.");
+			devWarn("🔐 401 detectado por axios. Lo manejará el hook/modal.");
 
 			localStorage.setItem("sessionExpired", "1");
 			localStorage.setItem("expired_at", Date.now().toString());
@@ -65,7 +66,7 @@ privateInstance.interceptors.response.use(
 					}),
 				);
 			} else {
-				console.warn("⛔ 403 acción:", message);
+				devWarn("⛔ 403 acción:", message);
 			}
 			setTimeout(() => {
 				permHandled = false;

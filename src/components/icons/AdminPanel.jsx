@@ -10,8 +10,26 @@ import { RiAdminLine } from "react-icons/ri";
 import { NavLink } from "react-router-dom";
 import { useMenuVisibilityFromRoutes } from "../../helpers/MenuPermissions";
 
-export default function AdminPanel({ isExpanded }) {
-	const [open, setOpen] = useState(false);
+export default function AdminPanel({
+	isExpanded,
+	onItemClick,
+	showChevron = true,
+	isOpen,
+	onToggleOpen,
+}) {
+	const [internalOpen, setInternalOpen] = useState(false);
+
+	const open = typeof isOpen === "boolean" ? isOpen : internalOpen;
+
+	const handleToggle = () => {
+		if (onToggleOpen) {
+			onToggleOpen();
+			return;
+		}
+
+		setInternalOpen((v) => !v);
+	};
+
 	const { canView } = useMenuVisibilityFromRoutes();
 
 	const itemBase =
@@ -36,7 +54,7 @@ export default function AdminPanel({ isExpanded }) {
 		<div className="w-full">
 			<button
 				type="button"
-				onClick={() => setOpen((v) => !v)}
+				onClick={handleToggle}
 				className="flex items-center px-1.5 py-2 text-white hover:bg-blue-700 dark:hover:bg-slate-700 rounded"
 				title={isExpanded ? "" : "Panel Admin"}
 			>
@@ -52,7 +70,7 @@ export default function AdminPanel({ isExpanded }) {
 						Panel Admin
 					</span>
 				</span>
-				{isExpanded && (
+				{isExpanded && showChevron && (
 					<svg
 						aria-hidden="true"
 						focusable="false"
@@ -71,31 +89,34 @@ export default function AdminPanel({ isExpanded }) {
 			{isExpanded && (
 				<div
 					className={[
-						"overflow-hidden transition-[max-height] duration-200",
-						open ? "max-h-screen" : "max-h-0",
+						"grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+						open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
 						"pl-2",
 					].join(" ")}
 				>
-					{visibleItems.map((item) => (
-						<NavLink
-							key={item.to}
-							to={item.to}
-							className={({ isActive }) =>
-								`mt-2 ${itemBase} ${isActive ? itemActive : itemInactive}`
-							}
-							title={isExpanded ? "" : item.label}
-						>
-							<span className="text-lg shrink-0">{item.icon}</span>
-							<span
-								className={[
-									"whitespace-nowrap transition-all duration-200 overflow-hidden",
-									isExpanded ? "opacity-100 w-[90px]" : "opacity-0 w-0",
-								].join(" ")}
+					<div className="min-h-0 overflow-hidden">
+						{visibleItems.map((item) => (
+							<NavLink
+								key={item.to}
+								to={item.to}
+								onClick={onItemClick}
+								className={({ isActive }) =>
+									`mt-2 ${itemBase} ${isActive ? itemActive : itemInactive}`
+								}
+								title={isExpanded ? "" : item.label}
 							>
-								{item.label}
-							</span>
-						</NavLink>
-					))}
+								<span className="text-lg shrink-0">{item.icon}</span>
+								<span
+									className={[
+										"whitespace-nowrap transition-all duration-200 overflow-hidden",
+										isExpanded ? "opacity-100 w-[90px]" : "opacity-0 w-0",
+									].join(" ")}
+								>
+									{item.label}
+								</span>
+							</NavLink>
+						))}
+					</div>
 				</div>
 			)}
 		</div>
