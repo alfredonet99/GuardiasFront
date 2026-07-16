@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { logout } from "../../../api/auth";
 import { NavLink } from "react-router-dom";
-import { AdminPanel, IconHome } from "../../icons/exportIcon";
+import { AdminPanel, IconHome, IconLogout } from "../../icons/exportIcon";
 import OperacionesAdminWrapper from "../WrapperOperaciones/OpereacionesWrapper";
+import { LOGOUT_BROADCAST_KEY } from "../../../services/auth";
 
 export default function FloatingMobileMenu() {
 	const [open, setOpen] = useState(false);
@@ -28,6 +30,12 @@ export default function FloatingMobileMenu() {
 		setActiveSection((prev) => (prev === section ? null : section));
 	};
 
+	const handleLogout = () => {
+		localStorage.setItem(LOGOUT_BROADCAST_KEY, Date.now().toString());
+		logout();
+		window.location.assign("/login");
+	};
+
 	return (
 		<div className="lg:hidden fixed bottom-6 right-5 z-[9999]">
 			<button
@@ -44,7 +52,6 @@ export default function FloatingMobileMenu() {
 				<div className="absolute bottom-16 right-0 w-64 max-h-[75vh] overflow-y-auto rounded-2xl bg-blue-600 dark:bg-slate-800 text-white shadow-2xl p-3 space-y-2 border border-blue-500/40 dark:border-slate-700 animate-scaleIn">
 					<div className="px-3 py-2 border-b border-white/20">
 						<p className="text-sm font-semibold">Menú</p>
-						<p className="text-xs text-white/70">Accesos principales</p>
 					</div>
 
 					<NavLink
@@ -74,11 +81,10 @@ export default function FloatingMobileMenu() {
 					<div className="border-t border-white/20 pt-2">
 						<button
 							type="button"
-							onClick={closeMenu}
-							className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-500/30 transition text-sm text-left"
+							onClick={handleLogout}
+							className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-700 dark:hover:bg-slate-700 transition text-sm text-left"
 						>
-							<span className="text-lg">🚪</span>
-							<span>Cerrar sesión</span>
+							<IconLogout label="Cerrar Sesión" />
 						</button>
 					</div>
 				</div>

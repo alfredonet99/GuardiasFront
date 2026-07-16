@@ -1,0 +1,248 @@
+{
+	"weeks": [
+		{
+			"id": "2026-W01",
+			"label": "Semana 1 · 05/01/2026 al 11/01/2026",
+			"start": "2026-01-05",
+			"end": "2026-01-11",
+			"monitoreos": [
+				{
+					"date": "2026-01-05",
+					"day": "Lun",
+					"created": 5,
+					"updated": 0,
+					"concluded": 3,
+					"annulled": 1
+				},
+				{
+					"date": "2026-01-06",
+					"day": "Mar",
+					"created": 7,
+					"updated": 0,
+					"concluded": 4,
+					"annulled": 0
+				},
+				{
+					"date": "2026-01-07",
+					"day": "Mié",
+					"created": 4,
+					"updated": 0,
+					"concluded": 5,
+					"annulled": 1
+				},
+				{
+					"date": "2026-01-08",
+					"day": "Jue",
+					"created": 8,
+					"updated": 0,
+					"concluded": 6,
+					"annulled": 2
+				},
+				{
+					"date": "2026-01-09",
+					"day": "Vie",
+					"created": 6,
+					"updated": 0,
+					"concluded": 4,
+					"annulled": 1
+				},
+				{
+					"date": "2026-01-10",
+					"day": "Sáb",
+					"created": 3,
+					"updated": 0,
+					"concluded": 2,
+					"annulled": 0
+				},
+				{
+					"date": "2026-01-11",
+					"day": "Dom",
+					"created": 2,
+					"updated": 0,
+					"concluded": 1,
+					"annulled": 1
+				}
+			],
+			"tickets": [
+				{
+					"date": "2026-01-05",
+					"day": "Lun",
+					"created": 8,
+					"updated": 6,
+					"concluded": 4,
+					"annulled": 1
+				},
+				{
+					"date": "2026-01-06",
+					"day": "Mar",
+					"created": 10,
+					"updated": 8,
+					"concluded": 6,
+					"annulled": 2
+				},
+				{
+					"date": "2026-01-07",
+					"day": "Mié",
+					"created": 6,
+					"updated": 9,
+					"concluded": 5,
+					"annulled": 1
+				},
+				{
+					"date": "2026-01-08",
+					"day": "Jue",
+					"created": 12,
+					"updated": 10,
+					"concluded": 8,
+					"annulled": 2
+				},
+				{
+					"date": "2026-01-09",
+					"day": "Vie",
+					"created": 9,
+					"updated": 11,
+					"concluded": 7,
+					"annulled": 1
+				},
+				{
+					"date": "2026-01-10",
+					"day": "Sáb",
+					"created": 4,
+					"updated": 5,
+					"concluded": 3,
+					"annulled": 0
+				},
+				{
+					"date": "2026-01-11",
+					"day": "Dom",
+					"created": 3,
+					"updated": 2,
+					"concluded": 2,
+					"annulled": 1
+				}
+			]
+		},
+		{
+			"id": "2026-W02",
+			"label": "Semana 2 · 12/01/2026 al 18/01/2026",
+			"start": "2026-01-12",
+			"end": "2026-01-18",
+			"monitoreos": [
+				{
+					"date": "2026-01-12",
+					"day": "Lun",
+					"created": 8,
+					"updated": 0,
+					"concluded": 5,
+					"annulled": 0
+				},
+				{
+					"date": "2026-01-13",
+					"day": "Mar",
+					"created": 6,
+					"updated": 0,
+					"concluded": 4,
+					"annulled": 1
+				},
+				{
+					"date": "2026-01-14",
+					"day": "Mié",
+					"created": 9,
+					"updated": 0,
+					"concluded": 7,
+					"annulled": 1
+				},
+				{
+					"date": "2026-01-15",
+					"day": "Jue",
+					"created": 7,
+					"updated": 0,
+					"concluded": 6,
+					"annulled": 0
+				},
+				{
+					"date": "2026-01-16",
+					"day": "Vie",
+					"created": 10,
+					"updated": 0,
+					"concluded": 8,
+					"annulled": 2
+				},
+				{
+					"date": "2026-01-17",
+					"day": "Sáb",
+					"created": 4,
+					"updated": 0,
+					"concluded": 3,
+					"annulled": 0
+				},
+				{
+					"date": "2026-01-18",
+					"day": "Dom",
+					"created": 3,
+					"updated": 0,
+					"concluded": 2,
+					"annulled": 0
+				}
+			],
+			"tickets": [
+				{
+					"date": "2026-01-12",
+					"day": "Lun",
+					"created": 12,
+					"updated": 9,
+					"concluded": 7,
+					"annulled": 1
+				},
+				{
+					"date": "2026-01-13",
+					"day": "Mar",
+					"created": 9,
+					"updated": 10,
+					"concluded": 6,
+					"annulled": 0
+				},
+				{
+					"date": "2026-01-14",
+					"day": "Mié",
+					"created": 14,
+					"updated": 12,
+					"concluded": 9,
+					"annulled": 2
+				},
+				{
+					"date": "2026-01-15",
+					"day": "Jue",
+					"created": 11,
+					"updated": 13,
+					"concluded": 8,
+					"annulled": 1
+				},
+				{
+					"date": "2026-01-16",
+					"day": "Vie",
+					"created": 15,
+					"updated": 14,
+					"concluded": 10,
+					"annulled": 2
+				},
+				{
+					"date": "2026-01-17",
+					"day": "Sáb",
+					"created": 5,
+					"updated": 6,
+					"concluded": 4,
+					"annulled": 0
+				},
+				{
+					"date": "2026-01-18",
+					"day": "Dom",
+					"created": 4,
+					"updated": 3,
+					"concluded": 2,
+					"annulled": 1
+				}
+			]
+		}
+	]
+}
