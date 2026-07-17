@@ -6,7 +6,7 @@ export default function WeekFilter({
 	disabled = false,
 }) {
 	return (
-		<div className="w-full sm:w-[250px]">
+		<div className="w-full sm:w-[300px]">
 			<label htmlFor={id} className="sr-only">
 				Semana evaluada
 			</label>

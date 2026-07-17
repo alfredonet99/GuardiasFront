@@ -80,9 +80,10 @@ export function getRollingWeeks(amount = 3, referenceDate = dayjs()) {
 			id: start.format("YYYY-MM-DD"),
 			start: start.format("YYYY-MM-DD"),
 			end: end.format("YYYY-MM-DD"),
-			label: `Semana ${weekOfMonth} de ${monthName} · ${start.format(
+			label: `Semana ${weekOfMonth}  de ${monthName} · ${start.format(
 				"DD/MM/YYYY",
 			)} al ${end.format("DD/MM/YYYY")}`,
+			subtitleLabel: `Semana ${weekOfMonth} de ${monthName}`,
 		};
 	});
 }

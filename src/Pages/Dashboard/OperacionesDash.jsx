@@ -81,16 +81,16 @@ const MONITOREO_WEEKLY_KPIS = [
 
 const MONITOREO_MONTHLY_KPIS = [
 	{
-		key: "pending_month_user",
-		title: "Pendientes",
-		accent: "indigo",
-		Icon: IconActivity,
-	},
-	{
 		key: "created_month_user",
 		title: "Creados",
 		accent: "indigo",
 		Icon: IconPlus,
+	},
+	{
+		key: "UpdateMontByUser",
+		title: "Actualizados",
+		accent: "indigo",
+		Icon: IconActivity,
 	},
 	{
 		key: "concluded_month_user",
@@ -105,6 +105,34 @@ const MONITOREO_MONTHLY_KPIS = [
 		Icon: IconX,
 	},
 ];
+
+const TICKET_MONTHLY_KPIS = [
+	{
+		key: "created",
+		title: "Creados",
+		accent: "indigo",
+		Icon: IconPlus,
+	},
+	{
+		key: "updated",
+		title: "Actualizados",
+		accent: "indigo",
+		Icon: IconRefresh,
+	},
+	{
+		key: "closed",
+		title: "Cerrados",
+		accent: "emerald",
+		Icon: IconCheck,
+	},
+	{
+		key: "annulled_mounth",
+		title: "Anulados",
+		accent: "rose",
+		Icon: IconX,
+	},
+];
+
 
 const TICKET_COLUMNS = ["Ticket", "Título", "Creado el", "Status", "Acciones"];
 
@@ -151,6 +179,7 @@ function getMonitoreoStats(counts = {}) {
 		created_month_user: Number(
 			counts.created_month_user ?? counts.total_month_user ?? 0,
 		),
+		UpdateMontByUser: Number(counts.UpdateMontByUser ?? 0),
 		concluded_month_user: Number(counts.concluded_month_user ?? 0),
 		annulled_month_user: Number(counts.annulled_month_user ?? 0),
 	};
@@ -166,9 +195,9 @@ function updateRecordById(records, updatedRecord) {
 	return records.map((record) =>
 		Number(record.id) === updatedId
 			? {
-					...record,
-					...updatedRecord,
-				}
+				...record,
+				...updatedRecord,
+			}
 			: record,
 	);
 }
@@ -636,7 +665,7 @@ export default function OperacionesDash() {
 						<WeeklyBarChart
 							title="Monitoreos por día"
 							subtitle={
-								selectedMonitoreoWeek?.label ?? "Sin periodo disponible"
+								selectedMonitoreoWeek?.subtitleLabel ?? "Sin periodo disponible"
 							}
 							data={monitoreoWeeklyChart}
 							series={["created", "concluded", "annulled"]}
@@ -656,7 +685,7 @@ export default function OperacionesDash() {
 
 						<WeeklyBarChart
 							title="Tickets por día"
-							subtitle={selectedTicketWeek?.label ?? "Sin periodo disponible"}
+							subtitle={selectedTicketWeek?.subtitleLabel ?? "Sin periodo disponible"}
 							data={ticketWeeklyChart}
 							series={["created", "updated", "concluded", "annulled"]}
 							loading={ticketChartLoading}
