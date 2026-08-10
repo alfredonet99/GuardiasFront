@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { privateInstance } from "../../api/axios";
 import { setSessionExpired } from "../../services/auth"; // donde pusiste setSessionExpired
+import { devLog } from "../../utils/devLogs";
 
 const CHECK_INTERVAL_MS = 30000;
 const DEBUG = true;
@@ -46,8 +47,7 @@ export function useAuthCheck({ isLeader }) {
 			};
 		}
 
-		if (DEBUG)
-			console.log(`[authCheck] creando intervalo… (leader=${isLeader})`);
+		if (DEBUG) devLog(`[authCheck] creando intervalo… (leader=${isLeader})`);
 
 		intervalRef.current = setInterval(async () => {
 			const token = localStorage.getItem("token");
@@ -79,7 +79,7 @@ export function useAuthCheck({ isLeader }) {
 			window.removeEventListener("session:changed", onSessionChanged);
 			if (intervalRef.current) clearInterval(intervalRef.current);
 			intervalRef.current = null;
-			if (DEBUG) console.log("[authCheck] limpiando intervalo (unmount)");
+			if (DEBUG) devLog("[authCheck] limpiando intervalo (unmount)");
 		};
 	}, [isLeader, expired]);
 

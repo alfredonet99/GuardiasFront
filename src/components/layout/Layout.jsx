@@ -22,6 +22,8 @@ import RoutePageTitleManager from "./RouteLayout";
 import RouteTitleUpdater from "./RouteTitle";
 import ComunicacionesAdminWrapper from "./WrapperComunicaciones/ComunicacionesWrapper";
 import OperacionesAdminWrapper from "./WrapperOperaciones/OpereacionesWrapper";
+import { devLog } from "../../utils/devLogs";
+import MenuMobile from "./Mobile/MenuMobile";
 
 export default function MainLayout() {
 	const [permDenied, setPermDenied] = useState(false);
@@ -80,7 +82,8 @@ export default function MainLayout() {
 			if (now - lastRunRef.current < 1500) return; // 1.5s
 			lastRunRef.current = now;
 
-			console.log(`🟦[PERMS] refreshPermissions() from=${from}`);
+			devLog(`🟦[PERMS] refreshPermissions() from=${from}`);
+
 			await refreshPermissions();
 		},
 		[isLeader],
@@ -106,7 +109,7 @@ export default function MainLayout() {
 
 	useEffect(() => {
 		const onDenied = (e) => {
-			console.log("⛔ [PERMISSION GATE] recibido:", e?.detail);
+			devLog("⛔ [PERMISSION GATE] recibido:", e?.detail);
 			setPermMessage(
 				e?.detail?.message || "No tienes permisos para acceder a esta sección.",
 			);
@@ -126,8 +129,9 @@ export default function MainLayout() {
 	return (
 		<div className="bg-white dark:bg-slate-900 min-h-screen">
 			{expired && <SessionExpiredModal onConfirm={handleLogout} />}
+			<MenuMobile></MenuMobile>
 			<aside
-				className={`fixed top-0 left-0 h-full bg-blue-600 dark:bg-slate-800 text-white  z-50 overflow-hidden transition-[width] duration-300 ease-in-out`}
+				className={` hidden lg:block fixed top-0 left-0 h-full bg-blue-600 dark:bg-slate-800 text-white  z-50 overflow-hidden transition-[width] duration-300 ease-in-out`}
 				style={{ width: isHovered ? "208px" : "64px" }}
 				onMouseEnter={() => setIsHovered(true)}
 				onMouseLeave={() => setIsHovered(false)}
@@ -156,10 +160,10 @@ export default function MainLayout() {
 
 			<PageTitleProvider>
 				<RouteTitleUpdater></RouteTitleUpdater>
-				<main className="zoom-table-9 ml-16 p-4 transition-all duration-300 relative">
+				<main className="zoom-table-9 lg:ml-16 p-4 transition-all duration-300 relative">
 					<div
-						className="zoom-table-9 fixed top-0 left-18 right-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700
-							shadow-sm px-4 py-3 flex items-center justify-between gap-4 backdrop-blur-md transition-colors"
+						className="zoom-table-9 fixed top-0 left-0 lg:left-16 right-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700
+		shadow-sm px-4 py-3 flex items-center justify-between gap-4 backdrop-blur-md transition-colors"
 					>
 						<RoutePageTitleManager />
 						<PageHeader />

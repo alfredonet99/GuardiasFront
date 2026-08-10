@@ -3,6 +3,7 @@ import { FiFile, FiUpload } from "react-icons/fi";
 import FlashMessage from "../../../components/UI/Errors/ErrorsGlobal";
 import useFlashMessage from "../../../hooks/Errors/ErrorMessage";
 import ModalImport from "../../UI/Modals/ModalImport";
+import { devError } from "../../../utils/devLogs";
 
 export default function IconImport({
 	disabled = false,
@@ -109,7 +110,7 @@ export default function IconImport({
 			// ✅ Éxito real
 			close(); // cierra modal y limpia
 		} catch (e) {
-			console.error("[IconImport] submit error:", e);
+			devError("[IconImport] submit error:", e);
 			showMessage(buildApiMessage(e), "error");
 		} finally {
 			setLoading(false);

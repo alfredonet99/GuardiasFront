@@ -1,5 +1,6 @@
 // hooks/Auth/TabLeader.jsx
 import { useEffect, useRef, useState } from "react";
+import { devLog } from "../../utils/devLogs";
 
 const KEY = "auth_leader";
 const HEARTBEAT_MS = 4000;
@@ -43,18 +44,18 @@ export function useTabLeader(DEBUG = false) {
 				writeLeader(tabId);
 				if (!isLeader) {
 					setIsLeader(true);
-					if (DEBUG) console.log(`[leader] tomo liderazgo 🟢 ${tabId}`);
+					if (DEBUG) devLog(`[leader] tomo liderazgo 🟢 ${tabId}`);
 				}
 			} else if (iAmLeader) {
 				writeLeader(tabId);
 				if (!isLeader) {
 					setIsLeader(true);
-					if (DEBUG) console.log(`[leader] sigo siendo líder ✅ ${tabId}`);
+					if (DEBUG) devLog(`[leader] sigo siendo líder ✅ ${tabId}`);
 				}
 			} else {
 				if (isLeader) {
 					setIsLeader(false);
-					if (DEBUG) console.log(`[leader] cedo liderazgo 🔴 ${tabId}`);
+					if (DEBUG) devLog(`[leader] cedo liderazgo 🔴 ${tabId}`);
 				}
 			}
 		};
@@ -83,7 +84,7 @@ export function useTabLeader(DEBUG = false) {
 	useEffect(() => {
 		if (DEBUG && lastLogRef.current !== isLeader) {
 			lastLogRef.current = isLeader;
-			console.log(
+			devLog(
 				isLeader
 					? `[leader] soy líder ✅ ${tabId}`
 					: `[leader] soy follower 💤 ${tabId}`,

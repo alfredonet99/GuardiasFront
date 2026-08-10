@@ -297,7 +297,7 @@ export default function MonitOk({
 			</div>
 
 			{/* Debug temporal */}
-			<div className="mt-6">
+			{/*<div className="mt-6">
 				<div className="mb-2 text-xs text-slate-500">DEBUG (temporal)</div>
 				<pre className="whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs dark:border-slate-800 dark:bg-slate-950">
 					{JSON.stringify(
@@ -321,7 +321,7 @@ export default function MonitOk({
 						2,
 					)}
 				</pre>
-			</div>
+			</div>*/}
 
 			{/* Bottom action bar */}
 			<div className="sticky bottom-0 w-full border-t border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 import { privateInstance } from "../../../api/axios";
+import { devError } from "../../../utils/devLogs";
 
 /**
  * Carga:
@@ -53,7 +54,7 @@ export default function UserPermissionsUI({
 
 				onChange?.(direct);
 			} catch (err) {
-				console.error("[UserPermissionsUI] load error:", err);
+				devError("[UserPermissionsUI] load error:", err);
 				showMessage?.("No se pudieron cargar permisos del usuario.", "error");
 			} finally {
 				setLoading(false);

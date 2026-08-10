@@ -20,6 +20,7 @@ import SearchInputLong from "../../../components/UI/Search/SearchLong";
 import useGlobalDelete from "../../../hooks/Confirm/DeleteG";
 import useDelayedRequestLoading from "../../../hooks/DelayRequestLoad";
 import { formatDateTime } from "../../../utils/date";
+import { devLog } from "../../../utils/devLogs";
 
 export default function ListTickets() {
 	const [query, setQuery] = useState("");
@@ -196,14 +197,14 @@ export default function ListTickets() {
 		try {
 			setExportLoading((prev) => ({ ...prev, excel: true }));
 
-			console.log("Exportar Excel", {
+			devLog("Exportar Excel", {
 				filters: exportFilters,
 				tickets,
 			});
 
 			closeExportModal();
 		} catch (e) {
-			console.error("Error al exportar Excel:", e);
+			devLog("Error al exportar Excel:", e);
 			alert("No se pudo generar el Excel.");
 		} finally {
 			setExportLoading((prev) => ({ ...prev, excel: false }));
@@ -214,7 +215,7 @@ export default function ListTickets() {
 		try {
 			setExportLoading((prev) => ({ ...prev, csv: true }));
 
-			console.log("Exportar CSV", {
+			devLog("Exportar CSV", {
 				filters: exportFilters,
 				tickets,
 			});

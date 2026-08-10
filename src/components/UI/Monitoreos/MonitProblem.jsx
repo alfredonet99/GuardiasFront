@@ -1,5 +1,5 @@
 // components/UI/Monitoreos/MonitProblem.jsx
-import { forwardRef, useMemo } from "react";
+import { forwardRef, useEffect, useMemo, useState } from "react";
 import DatePicker, { registerLocale } from "react-datepicker";
 import useAccordion from "../../../hooks/Accordion";
 import WordCountTextarea from "../WordCount/TextAreaCount";
@@ -80,8 +80,13 @@ export default function MonitProblem({
 	// ✅ concluir item (solo BD)
 	// firma esperada: (clientId, item, formRow) => void
 	onConcludeItem = null,
+
+	// ✅ bloqueo por monitoreos antiguos
+	requiresActionForItem = null,
+	didUserDoOneAction = null,
 }) {
 	const isWizard = mode === "wizard";
+	const [lockMessage, setLockMessage] = useState("");
 
 	const { isOpen, toggle, openAll, closeAll, openCount } = useAccordion({
 		single: false,
@@ -99,18 +104,58 @@ export default function MonitProblem({
 			? statusOptions
 			: [{ value: "", label: statusPlaceholder }];
 
+	const blockingItem = useMemo(() => {
+		if (
+			typeof requiresActionForItem !== "function" ||
+			typeof didUserDoOneAction !== "function"
+		) {
+			return null;
+		}
+
+		return (
+			items.find(
+				(item) => requiresActionForItem(item) && !didUserDoOneAction(item),
+			) ?? null
+		);
+	}, [items, requiresActionForItem, didUserDoOneAction]);
+
+	const blockingItemId = String(blockingItem?.id ?? "");
+
+	const blockingItemTitle =
+		blockingItem?.label ??
+		blockingItem?.nameCV ??
+		blockingItem?.name ??
+		`ID ${blockingItem?.id ?? ""}`;
+
+	useEffect(() => {
+		if (blockingItemId !== undefined) {
+			setLockMessage("");
+		}
+	}, [blockingItemId]);
+
+	const defaultLockMessage = blockingItem
+		? `El monitoreo ${blockingItemTitle} supera los días permitidos. Debes cambiar el estatus, capturar una observación distinta o concluirlo antes de revisar otro monitoreo.`
+		: "";
+
+	const visibleLockMessage = blockingItem
+		? lockMessage || defaultLockMessage
+		: "";
+
+	const displayedOpenCount = blockingItem ? 1 : openCount;
+
 	return (
 		<div className="mt-6">
 			<div className="flex items-center justify-between gap-2 flex-wrap">
 				<div className="text-sm text-slate-600 dark:text-slate-300">
-					<b>Clientes:</b> {items.length} • <b>Expandido:</b> {openCount}
+					<b>Clientes:</b> {items.length} • <b>Expandido:</b>{" "}
+					{displayedOpenCount}
 				</div>
 
 				<div className="flex items-center gap-2">
 					<button
 						type="button"
 						onClick={() => openAll(allIds)}
-						disabled={loading || items.length === 0}
+						disabled={loading || items.length === 0 || Boolean(blockingItem)}
 						className="px-3 py-2 rounded-lg border text-sm disabled:opacity-50"
 					>
 						Expandir todos
@@ -119,7 +164,7 @@ export default function MonitProblem({
 					<button
 						type="button"
 						onClick={closeAll}
-						disabled={loading || items.length === 0}
+						disabled={loading || items.length === 0 || Boolean(blockingItem)}
 						className="px-3 py-2 rounded-lg border text-sm disabled:opacity-50"
 					>
 						Colapsar todos
@@ -137,6 +182,12 @@ export default function MonitProblem({
 				</div>
 			</div>
 
+			{visibleLockMessage ? (
+				<div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300">
+					{visibleLockMessage}
+				</div>
+			) : null}
+
 			<div className="mt-4 space-y-3">
 				{loading ? (
 					<div className="p-4 rounded-lg border text-sm">Cargando...</div>
@@ -146,8 +197,6 @@ export default function MonitProblem({
 					</div>
 				) : (
 					items.map((c) => {
-						const open = isOpen(c.id);
-
 						const f = problemForm?.[c.id] ?? {
 							estatus: "",
 							observacion: "",
@@ -155,6 +204,27 @@ export default function MonitProblem({
 						};
 
 						const title = c.label ?? c.nameCV ?? c.name ?? `ID ${c.id}`;
+
+						const requiresChange =
+							typeof requiresActionForItem === "function"
+								? requiresActionForItem(c)
+								: false;
+
+						const actionDone =
+							typeof didUserDoOneAction === "function"
+								? didUserDoOneAction(c)
+								: true;
+
+						const isCurrentBlocking =
+							blockingItem && String(blockingItem?.id) === String(c?.id);
+
+						const lockedOpen = Boolean(isCurrentBlocking);
+
+						const blockedByOther = Boolean(
+							blockingItem && String(blockingItem?.id) !== String(c?.id),
+						);
+
+						const open = lockedOpen || (!blockedByOther && isOpen(c.id));
 
 						const itemStatusOptions =
 							typeof getStatusOptions === "function"
@@ -166,23 +236,52 @@ export default function MonitProblem({
 							isDb && typeof onConcludeItem === "function";
 						const isAlreadyConcluded = String(f?.estatus ?? "") === "1";
 
+						const handleToggleItem = () => {
+							if (lockedOpen) {
+								setLockMessage(
+									"Este monitoreo tiene más de 7 días y debe permanecer abierto hasta que cambies el estatus, captures una observación distinta o lo concluyas.",
+								);
+								return;
+							}
+
+							if (blockedByOther) {
+								setLockMessage(
+									`Primero debes modificar el monitoreo antiguo: ${blockingItemTitle}. No puedes abrir otro hasta realizar el cambio requerido.`,
+								);
+								return;
+							}
+
+							setLockMessage("");
+							toggle(c.id);
+						};
+
 						return (
 							<div
 								key={c.id}
-								className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden"
+								className={[
+									"rounded-xl border overflow-hidden",
+									requiresChange && !actionDone
+										? "border-red-300 bg-red-50/40 dark:border-red-700 dark:bg-red-950/20"
+										: "border-slate-200 dark:border-slate-800",
+								].join(" ")}
 							>
 								{/* biome-ignore lint/a11y/useSemanticElements: Se usa div interactivo para no romper estructura/estilos; se mantiene role, tabIndex y onKeyDown */}
 								<div
 									role="button"
 									tabIndex={0}
-									onClick={() => toggle(c.id)}
+									onClick={handleToggleItem}
 									onKeyDown={(e) => {
 										if (e.key === "Enter" || e.key === " ") {
 											e.preventDefault();
-											toggle(c.id);
+											handleToggleItem();
 										}
 									}}
-									className="w-full text-left px-4 py-3 flex items-start justify-between gap-3 cursor-pointer select-none"
+									className={[
+										"w-full text-left px-4 py-3 flex items-start justify-between gap-3 select-none",
+										lockedOpen || blockedByOther
+											? "cursor-not-allowed"
+											: "cursor-pointer",
+									].join(" ")}
 									aria-expanded={open}
 									aria-controls={`monit_panel_${c.id}`}
 								>
@@ -194,13 +293,26 @@ export default function MonitProblem({
 												? metaChips(c, f)?.map((chip, idx) => (
 														<span
 															key={`${c.id}_${idx}_${chip?.label ?? "chip"}`}
-															className="px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700"
+															className={[
+																"px-2 py-1 rounded-full border font-semibold",
+																chip?.className ||
+																	"border-slate-200 dark:border-slate-700",
+															].join(" ")}
 														>
 															{chip.label}: {chip.value ?? "—"}
 														</span>
 													))
 												: null}
 										</div>
+
+										{lockedOpen ? (
+											<div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300">
+												Este monitoreo requiere cambio porque supera los días
+												permitidos. Debes cambiar el estatus, capturar una
+												observación distinta o concluirlo antes de revisar otro
+												monitoreo.
+											</div>
+										) : null}
 									</div>
 
 									<div className="shrink-0 flex items-center gap-2 text-slate-500">
@@ -210,18 +322,31 @@ export default function MonitProblem({
 												type="button"
 												onClick={(e) => {
 													e.stopPropagation();
+
+													if (blockedByOther) {
+														setLockMessage(
+															`Primero debes modificar el monitoreo antiguo: ${blockingItemTitle}. No puedes concluir otro hasta realizar el cambio requerido.`,
+														);
+														return;
+													}
+
+													setLockMessage("");
 													onConcludeItem?.(c.id, c, f);
 												}}
-												disabled={loading || isAlreadyConcluded}
+												disabled={
+													loading || isAlreadyConcluded || blockedByOther
+												}
 												className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition
     bg-emerald-600 text-white border-emerald-600
     hover:bg-emerald-700 hover:border-emerald-700
     active:bg-emerald-800 active:border-emerald-800
     disabled:opacity-50"
 												title={
-													isAlreadyConcluded
-														? "Ya está concluido (estatus 1)"
-														: "Marcar como concluido (estatus 1)"
+													blockedByOther
+														? `Primero modifica: ${blockingItemTitle}`
+														: isAlreadyConcluded
+															? "Ya está concluido (estatus 1)"
+															: "Marcar como concluido (estatus 1)"
 												}
 											>
 												Concluir
@@ -229,7 +354,11 @@ export default function MonitProblem({
 										) : null}
 
 										<span className="text-xs">
-											{open ? "Ocultar" : "Abrir"}
+											{lockedOpen
+												? "Requiere cambio"
+												: open
+													? "Ocultar"
+													: "Abrir"}
 										</span>
 										<Chevron open={open} />
 									</div>

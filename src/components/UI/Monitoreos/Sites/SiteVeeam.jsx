@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { privateInstance } from "../../../../api/axios";
 import MonitOk from "../MonitOk";
 import MonitProblem from "../MonitProblem";
+import { devError } from "../../../../utils/devLogs";
 
 export default function SiteVeeam({
 	step,
@@ -180,7 +181,7 @@ export default function SiteVeeam({
 			onFlash?.("Monitoreo guardado correctamente (OK).", "success");
 			onSuccessRedirect?.();
 		} catch (e) {
-			console.error(e);
+			devError("Error al guardar monitoreo (OK):", e);
 			onFlash?.(
 				e?.response?.data?.message || "Error al guardar monitoreo (OK).",
 				"error",
@@ -212,7 +213,7 @@ export default function SiteVeeam({
 			);
 			onSuccessRedirect?.();
 		} catch (e) {
-			console.error(e);
+			devError("Error al guardar monitoreo (Problemas):", e);
 			onFlash?.(
 				e?.response?.data?.message || "Error al guardar monitoreo (Problemas).",
 				"error",

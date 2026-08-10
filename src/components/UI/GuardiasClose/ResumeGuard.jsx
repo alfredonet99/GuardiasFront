@@ -10,8 +10,10 @@ function normalizeGroupName(it) {
 	if (name) return name;
 
 	const id = it?.veeam_id ?? it?.siteApp ?? null;
-	if (id != null && String(id).trim() !== "")
+
+	if (id != null && String(id).trim() !== "") {
 		return `VEEAM #${String(id).trim()}`;
+	}
 
 	return "VEEAM (sin nombre)";
 }
@@ -31,6 +33,7 @@ function groupByVeeamName(items = []) {
 
 function formatDateOnly(value) {
 	if (!value) return "—";
+
 	try {
 		const d = value instanceof Date ? value : new Date(value);
 		if (Number.isNaN(d.getTime())) return String(value);
@@ -46,7 +49,7 @@ function formatDateOnly(value) {
 }
 
 /**
- * ✅ labels locales (igual que tu controller)
+ * ✅ labels locales
  */
 const STATUS_VEEAM = {
 	1: "Completado Exitoso - Backup finalizado sin errores",
@@ -82,6 +85,7 @@ function clientDisplay(r) {
 	if (label) return label;
 	if (num) return num;
 	if (name) return name;
+
 	return "—";
 }
 
@@ -93,9 +97,11 @@ function ticketId(t) {
 function ticketNum(t) {
 	const a = String(t?.numTicket ?? "").trim();
 	const b = String(t?.numTicketNoct ?? "").trim();
+
 	if (a && b) return `${a} / ${b}`;
 	if (a) return a;
 	if (b) return b;
+
 	return "—";
 }
 
@@ -130,6 +136,69 @@ function Chip({ label, value, tone = "slate" }) {
 	);
 }
 
+function VeeamRowsTable({
+	rows = [],
+	emptyMessage = "Sin datos para mostrar.",
+}) {
+	return (
+		<div className="mt-2 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+			<table className="min-w-full text-left">
+				<thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-sm">
+					<tr>
+						<th className="px-4 py-2 whitespace-nowrap">CLIENTE</th>
+						<th className="px-4 py-2 whitespace-nowrap">SITE</th>
+						<th className="px-4 py-2 whitespace-nowrap">BACKUP</th>
+						<th className="px-4 py-2 whitespace-nowrap">
+							FECHA DE RESTAURACIÓN
+						</th>
+						<th className="px-4 py-2 whitespace-nowrap">ESTATUS VEEAM</th>
+						<th className="px-4 py-2 whitespace-nowrap">OBSERVACIÓN</th>
+					</tr>
+				</thead>
+
+				<tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+					{rows.length === 0 ? (
+						<tr>
+							<td
+								colSpan={8}
+								className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400"
+							>
+								{emptyMessage}
+							</td>
+						</tr>
+					) : (
+						rows.map((r, idx) => (
+							<tr key={String(r?.numCV || r?.client_label || idx)}>
+								<td className="px-4 py-2 text-sm whitespace-nowrap">
+									{clientDisplay(r)}
+								</td>
+
+								<td className="px-4 py-2 text-sm whitespace-nowrap">
+									{r?.veeam_name || r?.site || "—"}
+								</td>
+
+								<td className="px-4 py-2 text-sm whitespace-nowrap">
+									{r?.backup ?? "—"}
+								</td>
+
+								<td className="px-4 py-2 text-sm whitespace-nowrap">
+									{formatDateOnly(r?.last_restore_date)}
+								</td>
+
+								<td className="px-4 py-2 text-sm whitespace-nowrap">
+									{veeamLabel(r?.estatus_veeam ?? r?.estatus)}
+								</td>
+
+								<td className="px-4 py-2 text-sm">{r?.observacion ?? "—"}</td>
+							</tr>
+						))
+					)}
+				</tbody>
+			</table>
+		</div>
+	);
+}
+
 export default function ResumeGuard({
 	guardia,
 
@@ -137,7 +206,7 @@ export default function ResumeGuard({
 	selectedOkItemsVeeam = [],
 	pendingVeeamRows = [],
 
-	// ✅ Tickets (NUEVO)
+	// ✅ Tickets
 	ticketsPending = [],
 	ticketsConcludedByUser = {},
 	ticketsCounters = null,
@@ -151,49 +220,72 @@ export default function ResumeGuard({
 	const okItems = Array.isArray(selectedOkItemsVeeam)
 		? selectedOkItemsVeeam
 		: [];
+
 	const pendingRows = Array.isArray(pendingVeeamRows) ? pendingVeeamRows : [];
 
 	const totalOk = okItems.length;
+
 	const groups = useMemo(() => groupByVeeamName(okItems), [okItems]);
 
-	// ✅ reloj en vivo (cada minuto)
+	// ✅ reloj en vivo
 	const [now, setNow] = useState(new Date());
+
 	useEffect(() => {
 		const id = setInterval(() => setNow(new Date()), 60000);
 		return () => clearInterval(id);
 	}, []);
 
-	// ✅ conteo pendientes VEEAM
-	const pendingCounters = useMemo(() => {
-		let abiertos = 0;
-		let concluidos = 0;
+	// ✅ separación de monitoreos VEEAM para resumen
+	const monitoreoGroups = useMemo(() => {
+		const closedInGuard = [];
+		const pendingUpdatedInGuard = [];
+		const unchangedOrNewInGuard = [];
 
 		for (const r of pendingRows) {
-			const m = String(r?.estatus_monitoreo ?? "").trim();
-			if (m === "2") concluidos += 1;
-			else if (m === "1") abiertos += 1;
+			const category = String(r?.guard_category ?? "").trim();
+
+			if (category === "closed_in_guard") {
+				closedInGuard.push(r);
+				continue;
+			}
+
+			if (category === "pending_updated_in_guard") {
+				pendingUpdatedInGuard.push(r);
+				continue;
+			}
+
+			unchangedOrNewInGuard.push(r);
 		}
 
 		return {
-			abiertos,
-			concluidos,
-			total: pendingRows.length,
+			closedInGuard,
+			pendingUpdatedInGuard,
+			unchangedOrNewInGuard,
 		};
 	}, [pendingRows]);
 
+	const pendingCounters = useMemo(() => {
+		return {
+			total: pendingRows.length,
+			cerrados: monitoreoGroups.closedInGuard.length,
+			actualizadosPendientes: monitoreoGroups.pendingUpdatedInGuard.length,
+			sinCambiosONuevos: monitoreoGroups.unchangedOrNewInGuard.length,
+		};
+	}, [pendingRows, monitoreoGroups]);
+
 	// ✅ normaliza tickets props
 	const tPending = Array.isArray(ticketsPending) ? ticketsPending : [];
+
 	const tConcludedByUser =
 		ticketsConcludedByUser && typeof ticketsConcludedByUser === "object"
 			? ticketsConcludedByUser
 			: {};
 
 	const tCounters = useMemo(() => {
-		// si el padre ya mandó contadores, usamos esos
-		if (ticketsCounters && typeof ticketsCounters === "object")
+		if (ticketsCounters && typeof ticketsCounters === "object") {
 			return ticketsCounters;
+		}
 
-		// fallback: los calculamos aquí con lo que tenemos
 		let concluded = 0;
 		const pending = tPending.length;
 
@@ -221,7 +313,7 @@ export default function ResumeGuard({
 				<div>
 					<h2 className="text-2xl font-bold">RESUMEN DE GUARDIA</h2>
 					<p className="text-sm text-slate-600 dark:text-slate-400">
-						Se muestran totales y agrupación por VEEAM (siteApp) y Tickets.
+						Se muestran totales y agrupación por VEEAM y Tickets.
 					</p>
 				</div>
 
@@ -329,94 +421,68 @@ export default function ResumeGuard({
 				</div>
 			</div>
 
-			{/* TABLA PENDIENTES VEEAM */}
+			{/* TABLAS MONITOREOS VEEAM */}
 			<div className="mt-4">
 				<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 					<h1 className="text-lg font-bold tracking-wide text-slate-900 dark:text-slate-100">
-						VEEAM PENDIENTES
+						RESUMEN DE MONITOREOS VEEAM
 					</h1>
 
 					<div className="flex flex-wrap items-center gap-2">
 						<Chip label="Total" value={pendingCounters.total} tone="slate" />
 						<Chip
-							label="Abiertos"
-							value={pendingCounters.abiertos}
+							label="Cerrados en guardia"
+							value={pendingCounters.cerrados}
+							tone="emerald"
+						/>
+						<Chip
+							label="Pendientes actualizados"
+							value={pendingCounters.actualizadosPendientes}
 							tone="amber"
 						/>
 						<Chip
-							label="Concluidos"
-							value={pendingCounters.concluidos}
-							tone="emerald"
+							label="Sin cambios / nuevos"
+							value={pendingCounters.sinCambiosONuevos}
+							tone="slate"
 						/>
 					</div>
 				</div>
 
-				<div className="mt-2 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-					<table className="min-w-full text-left">
-						<thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase text-sm">
-							<tr>
-								<th className="px-4 py-2 whitespace-nowrap">CLIENTE</th>
-								<th className="px-4 py-2 whitespace-nowrap">SITE</th>
-								<th className="px-4 py-2 whitespace-nowrap">BACKUP</th>
-								<th className="px-4 py-2 whitespace-nowrap">
-									FECHA DE RESTAURACIÓN
-								</th>
-								<th className="px-4 py-2 whitespace-nowrap">ESTATUS VEEAM</th>
-								<th className="px-4 py-2 whitespace-nowrap">OBSERVACIÓN</th>
-								<th className="px-4 py-2 whitespace-nowrap">
-									ESTATUS MONITOREO
-								</th>
-							</tr>
-						</thead>
+				<div className="mt-5">
+					<h2 className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
+						MONITOREOS CERRADOS EN ESTA GUARDIA
+					</h2>
 
-						<tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-							{pendingRows.length === 0 ? (
-								<tr>
-									<td
-										colSpan={7}
-										className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400"
-									>
-										Sin pendientes para mostrar.
-									</td>
-								</tr>
-							) : (
-								pendingRows.map((r, idx) => (
-									<tr key={String(r?.numCV || r?.client_label || idx)}>
-										<td className="px-4 py-2 text-sm whitespace-nowrap">
-											{clientDisplay(r)}
-										</td>
+					<VeeamRowsTable
+						rows={monitoreoGroups.closedInGuard}
+						emptyMessage="No se cerraron monitoreos en esta guardia."
+					/>
+				</div>
 
-										<td className="px-4 py-2 text-sm whitespace-nowrap">
-											{r?.veeam_name || r?.site || "—"}
-										</td>
+				<div className="mt-6">
+					<h2 className="text-lg font-bold text-amber-700 dark:text-amber-300">
+						MONITOREOS PENDIENTES ACTUALIZADOS EN ESTA GUARDIA
+					</h2>
 
-										<td className="px-4 py-2 text-sm whitespace-nowrap">
-											{r?.backup ?? "—"}
-										</td>
+					<VeeamRowsTable
+						rows={monitoreoGroups.pendingUpdatedInGuard}
+						emptyMessage="No hay monitoreos pendientes actualizados en esta guardia."
+					/>
+				</div>
 
-										<td className="px-4 py-2 text-sm whitespace-nowrap">
-											{formatDateOnly(r?.last_restore_date)}
-										</td>
+				<div className="mt-6">
+					<h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+						MONITOREOS SIN MODIFICACIÓN / AGREGADOS EN ESTA GUARDIA
+					</h2>
 
-										<td className="px-4 py-2 text-sm whitespace-nowrap">
-											{veeamLabel(r?.estatus_veeam ?? r?.estatus)}
-										</td>
-
-										<td className="px-4 py-2 text-sm">
-											{r?.observacion ?? "—"}
-										</td>
-
-										<td className="px-4 py-2 text-sm whitespace-nowrap">
-											{monitLabel(r?.estatus_monitoreo ?? r?.concluido)}
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+					<VeeamRowsTable
+						rows={monitoreoGroups.unchangedOrNewInGuard}
+						emptyMessage="No hay monitoreos sin modificación ni agregados en esta guardia."
+					/>
 				</div>
 			</div>
 
+			{/* ===================== TICKETS ===================== */}
 			<div className="mt-8">
 				<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 					<h1 className="text-xl font-bold tracking-wide text-slate-900 dark:text-slate-100">
@@ -435,7 +501,6 @@ export default function ResumeGuard({
 					</div>
 				</div>
 
-				{/* TABLA: PENDIENTES */}
 				<div className="mt-3">
 					<h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
 						TICKETS PENDIENTES
@@ -455,7 +520,7 @@ export default function ResumeGuard({
 								{tPending.length === 0 ? (
 									<tr>
 										<td
-											colSpan={5}
+											colSpan={3}
 											className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400"
 										>
 											Sin tickets pendientes.
@@ -470,6 +535,7 @@ export default function ResumeGuard({
 
 											<td className="px-4 py-2 text-sm">
 												<div className="font-semibold">{ticketTitle(t)}</div>
+
 												{t?.descriptionTicket || t?.description ? (
 													<div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[520px]">
 														{String(
@@ -478,6 +544,7 @@ export default function ResumeGuard({
 													</div>
 												) : null}
 											</td>
+
 											<td className="px-4 py-2 text-sm whitespace-nowrap">
 												{ticketStatusLabel(t)}
 											</td>
@@ -556,7 +623,9 @@ export default function ResumeGuard({
 																					"",
 																			).trim()}
 																		</div>
-																	) : null}
+																	) : (
+																		"—"
+																	)}
 																</td>
 
 																<td className="px-2 py-2 text-sm whitespace-nowrap">

@@ -7,6 +7,7 @@ import BackButton from "../../components/UI/ConfirmBtn/ExitConfirmShow";
 import FormLoader from "../../components/UI/Loaders/FormLoader";
 import { useAuthMe } from "../../hooks/Auth/AuthMe";
 import PermissionDenied from "../Errors/PermissionDenied";
+import { devLog } from "../../utils/devLogs";
 
 function getInitials(name = "") {
 	const parts = String(name).trim().split(/\s+/).filter(Boolean);
@@ -37,7 +38,7 @@ export default function ShowUser() {
 				setLoading(true);
 
 				const { data } = await privateInstance.get(`/users/${id}/ver`);
-				console.log("🟦[SHOWUSER] response:", data);
+				devLog("🟦[SHOWUSER] response:", data);
 
 				setUser(data?.user ?? null);
 				setArea(data?.area ?? null);

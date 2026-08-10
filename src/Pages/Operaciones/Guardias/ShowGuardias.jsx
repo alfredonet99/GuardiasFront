@@ -6,6 +6,7 @@ import FlashMessage from "../../../components/UI/Errors/ErrorsGlobal";
 import useFlashMessage from "../../../hooks/Errors/ErrorMessage";
 import { formatDateTime } from "../../../utils/date";
 import { useEffect, useState } from "react";
+import { devLog } from "../../../utils/devLogs";
 
 export default function ShowGuardias() {
 	const { id } = useParams();
@@ -47,7 +48,7 @@ export default function ShowGuardias() {
 		};
 	}, [id, showMessage, clearMessage]);
 
-	console.log(guardia);
+	devLog("[ShowGuardias] guardia =>", guardia);
 	return (
 		<div className="min-h-screen w-full px-8 py-8 bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200">
 			<header className="flex items-start justify-between mb-6">

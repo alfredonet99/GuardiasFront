@@ -142,3 +142,37 @@
 		width: 100% !important;
 	}
 }
+
+/* Grupo de acciones reutilizable */
+.actions-responsive-grid {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: nowrap;
+}
+
+.actions-responsive-grid > * {
+	flex: 0 0 auto;
+}
+
+/* Solo pantallas grandes con escala Windows 125% */
+@media (min-width: 1024px) and (min-resolution: 1.25dppx) {
+	.actions-responsive-grid {
+		display: grid;
+		grid-template-columns: repeat(2, max-content);
+		justify-content: center;
+		justify-items: center;
+		align-items: center;
+		gap: 0.45rem;
+	}
+}
+
+/* Solo pantallas grandes con escala Windows 150% */
+@media (min-width: 1024px) and (min-resolution: 1.5dppx) {
+	.actions-responsive-grid {
+		display: grid;
+		grid-template-columns: repeat(2, max-content);
+		gap: 0.35rem;
+	}
+}

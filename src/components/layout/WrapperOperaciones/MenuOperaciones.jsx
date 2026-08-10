@@ -25,7 +25,7 @@ export const OPERACIONES_MENU_ITEMS = [
 	},
 ];
 
-export default function OperacionesMenu({ isExpanded }) {
+export default function OperacionesMenu({ isExpanded, onItemClick }) {
 	const { canView } = useMenuVisibilityFromRoutes();
 
 	const itemBase =
@@ -44,6 +44,7 @@ export default function OperacionesMenu({ isExpanded }) {
 				<NavLink
 					key={it.to}
 					to={it.to}
+					onClick={onItemClick}
 					className={({ isActive }) =>
 						`${itemBase} ${isActive ? itemActive : itemInactive}`
 					}
